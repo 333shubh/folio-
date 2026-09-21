@@ -48,9 +48,13 @@ export const CHARACTER = {
 
 export const COLLAGE = {
   seed: 20260921,
-  cardCount: 26,
-  /** How far past the viewport the drifting field extends, in px. */
-  margin: 320,
+  cardCount: 34,
+  /**
+   * How far past the viewport the drifting field extends, in px.
+   * Larger means more of the field is off-screen at any moment, so fewer
+   * cards are actually visible for a given cardCount.
+   */
+  margin: 200,
 
   /**
    * Ambient drift, px/sec.

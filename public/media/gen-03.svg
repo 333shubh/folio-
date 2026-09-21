@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" viewBox="0 0 560 560">
+  <defs>
+    <linearGradient id="sky2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7b90a6"/>
+      <stop offset="100%" stop-color="#7b90a6" stop-opacity="0.75"/>
+    </linearGradient>
+    <linearGradient id="wat2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#394c61" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#394c61"/>
+    </linearGradient>
+    <radialGradient id="soft2">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur2"><feGaussianBlur stdDeviation="19.6"/></filter>
+  </defs>
+
+  <rect width="560" height="560" fill="url(#sky2)"/>
+  <rect y="347.2" width="560" height="212.8" fill="url(#wat2)"/>
+
+  <g filter="url(#blur2)"><circle cx="291.2" cy="341.6" r="235.2" fill="url(#soft2)" opacity="0.28"/><circle cx="112.0" cy="140.0" r="123.2" fill="url(#soft2)" opacity="0.28"/><circle cx="380.8" cy="341.6" r="179.2" fill="url(#soft2)" opacity="0.28"/></g>
+
+  <!-- horizon glow, the thing that makes a flat gradient read as a place -->
+  <rect y="340.5" width="560" height="13.4" fill="#ffffff" opacity="0.2" filter="url(#blur2)"/>
+</svg>

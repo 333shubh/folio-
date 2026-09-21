@@ -59,8 +59,17 @@ export default function Collage() {
     const rand = mulberry32(COLLAGE.seed);
     const cards: Card[] = [];
 
-    let vw = window.innerWidth;
-    let vh = window.innerHeight;
+    /**
+     * Never trust these to be non-zero at mount. A hidden, collapsed or
+     * not-yet-laid-out container reports 0, which collapses the whole field
+     * to the margin and piles every card in one corner.
+     */
+    const measure = () => ({
+      w: Math.max(window.innerWidth || document.documentElement.clientWidth, 1),
+      h: Math.max(window.innerHeight || document.documentElement.clientHeight, 1),
+    });
+
+    let { w: vw, h: vh } = measure();
     let zone: ClearZone = getClearZone(vw, vh);
 
     // The field extends past the viewport so cards wrap off-screen unseen.
@@ -77,6 +86,24 @@ export default function Collage() {
 
     let videoCount = 0;
     const pendingPlay: HTMLVideoElement[] = [];
+
+    // Grid sized so the cells are roughly square across the whole field.
+    const cols = Math.max(2, Math.round(Math.sqrt(
+      (COLLAGE.cardCount * fieldW()) / fieldH()
+    )));
+    const rows = Math.max(2, Math.ceil(COLLAGE.cardCount / cols));
+    const cellW = fieldW() / cols;
+    const cellH = fieldH() / rows;
+
+    const cellOrder: { col: number; row: number }[] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) cellOrder.push({ col: c, row: r });
+    }
+    // Fisher-Yates on the seeded PRNG - deterministic, but uncorrelated.
+    for (let k = cellOrder.length - 1; k > 0; k--) {
+      const j = Math.floor(rand() * (k + 1));
+      [cellOrder[k], cellOrder[j]] = [cellOrder[j], cellOrder[k]];
+    }
 
     for (let i = 0; i < COLLAGE.cardCount; i++) {
       const item = media[i % media.length];
@@ -123,13 +150,23 @@ export default function Collage() {
 
       root.appendChild(el);
 
-      // Seed positions outside the clear zone so nothing pops in on top of
-      // the character on first paint.
+      /**
+       * Place on a jittered grid rather than at random.
+       *
+       * Uniform random over a field this much larger than the viewport
+       * clumps badly - runs of empty screen next to piles of overlapping
+       * cards. One card per cell with jitter keeps coverage even while
+       * still looking unplanned.
+       *
+       * Cells are walked in a shuffled order so card size and depth are not
+       * correlated with screen position.
+       */
+      const cell = cellOrder[i % cellOrder.length];
       let bx = 0;
       let by = 0;
-      for (let attempt = 0; attempt < 40; attempt++) {
-        bx = -M + rand() * fieldW();
-        by = -M + rand() * fieldH();
+      for (let attempt = 0; attempt < 12; attempt++) {
+        bx = -M + (cell.col + 0.15 + rand() * 0.7) * cellW;
+        by = -M + (cell.row + 0.15 + rand() * 0.7) * cellH;
         if (zoneDistance(bx, by, zone) > COLLAGE.spawnClearance) break;
       }
 
@@ -234,12 +271,42 @@ export default function Collage() {
     };
     document.addEventListener("visibilitychange", onVisibility);
 
+    /**
+     * Remap the field on resize.
+     *
+     * Card positions are laid out once against the field size at mount. Only
+     * updating vw/vh here would leave them scattered for the old viewport -
+     * clumped in a corner after a window grows, or pushed off-screen after it
+     * shrinks. Rescaling their base positions keeps the distribution intact.
+     */
     const onResize = () => {
-      vw = window.innerWidth;
-      vh = window.innerHeight;
+      const oldW = fieldW();
+      const oldH = fieldH();
+
+      const next = measure();
+      vw = next.w;
+      vh = next.h;
+
+      const sx = fieldW() / oldW;
+      const sy = fieldH() / oldH;
+      for (const c of cards) {
+        c.bx = (c.bx + M) * sx - M;
+        c.by = (c.by + M) * sy - M;
+      }
+
       zone = getClearZone(vw, vh);
+      for (const c of cards) paint(c);
     };
     window.addEventListener("resize", onResize);
+
+    // The container can be laid out after mount (hidden pane, late fonts,
+    // mobile browser chrome settling), so re-measure once the first frame
+    // has actually been through layout.
+    const ro = new ResizeObserver(() => {
+      const next = measure();
+      if (next.w !== vw || next.h !== vh) onResize();
+    });
+    ro.observe(document.documentElement);
 
     let raf = 0;
     let last = performance.now();
@@ -294,6 +361,7 @@ export default function Collage() {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      ro.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       for (const t of playTimers) clearTimeout(t);
       for (const c of cards) c.el.remove();
