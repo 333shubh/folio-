@@ -1,98 +1,56 @@
 [
   {
-    "src": "/media/gen-01.svg",
+    "src": "/media/cat.jpg",
     "type": "image",
-    "w": 640,
-    "h": 400
+    "w": 736,
+    "h": 552
   },
   {
-    "src": "/media/gen-02.svg",
+    "src": "/media/extra.avif",
     "type": "image",
-    "w": 420,
-    "h": 560
+    "w": 1673,
+    "h": 956
   },
   {
-    "src": "/media/gen-03.svg",
+    "src": "/media/eye-glitch.webp",
     "type": "image",
-    "w": 560,
-    "h": 560
+    "w": 500,
+    "h": 281
   },
   {
-    "src": "/media/gen-04.svg",
+    "src": "/media/horses.jpg",
     "type": "image",
-    "w": 720,
-    "h": 405
+    "w": 736,
+    "h": 477
   },
   {
-    "src": "/media/gen-05.svg",
+    "src": "/media/lizard-tcr.webp",
     "type": "image",
-    "w": 380,
-    "h": 520
+    "w": 500,
+    "h": 375
   },
   {
-    "src": "/media/gen-06.svg",
+    "src": "/media/planet.webp",
     "type": "image",
-    "w": 520,
-    "h": 340
+    "w": 500,
+    "h": 387
   },
   {
-    "src": "/media/gen-07.svg",
+    "src": "/media/shadows.jpg",
     "type": "image",
-    "w": 640,
-    "h": 400
+    "w": 735,
+    "h": 485
   },
   {
-    "src": "/media/gen-08.svg",
+    "src": "/media/snakes.jpg",
     "type": "image",
-    "w": 420,
-    "h": 560
+    "w": 1199,
+    "h": 632
   },
   {
-    "src": "/media/gen-09.svg",
+    "src": "/media/vhs-welcome.webp",
     "type": "image",
-    "w": 560,
-    "h": 560
-  },
-  {
-    "src": "/media/gen-10.svg",
-    "type": "image",
-    "w": 720,
-    "h": 405
-  },
-  {
-    "src": "/media/gen-11.svg",
-    "type": "image",
-    "w": 380,
-    "h": 520
-  },
-  {
-    "src": "/media/gen-12.svg",
-    "type": "image",
-    "w": 520,
-    "h": 340
-  },
-  {
-    "src": "/media/gen-clip-01.mp4",
-    "type": "video",
-    "w": 640,
-    "h": 360
-  },
-  {
-    "src": "/media/gen-clip-02.mp4",
-    "type": "video",
-    "w": 420,
-    "h": 560
-  },
-  {
-    "src": "/media/gen-clip-03.mp4",
-    "type": "video",
-    "w": 480,
-    "h": 480
-  },
-  {
-    "src": "/media/gen-clip-04.mp4",
-    "type": "video",
-    "w": 640,
-    "h": 360
+    "w": 386,
+    "h": 270
   }
 ]

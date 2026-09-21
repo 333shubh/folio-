@@ -16,10 +16,34 @@ export const CHARACTER = {
   model: process.env.NEXT_PUBLIC_CHARACTER_MODEL ?? "/models/nico.glb",
 
   /**
-   * Clip to play. Falls back to the first clip in the file if this name is
-   * not found, so an unfamiliar model still animates instead of standing still.
+   * Clip played once on load, before settling into the idle.
+   * Falls back to the first clip in the file if the name is not present.
    */
-  clip: process.env.NEXT_PUBLIC_CHARACTER_CLIP ?? "hiphop",
+  introClip: process.env.NEXT_PUBLIC_CHARACTER_INTRO ?? "waving",
+
+  /** Resting loop between dances. */
+  idleClip: process.env.NEXT_PUBLIC_CHARACTER_IDLE ?? "idle",
+
+  /**
+   * Clicking the character advances through these, in order, so every dance
+   * in the model gets used rather than one on repeat.
+   */
+  danceClips: [
+    "hiphop",
+    "twist",
+    "snake",
+    "slide",
+    "chicken",
+    "twerk",
+  ] as readonly string[],
+
+  /**
+   * Playback rate for the dances. The clips are authored quick; below 1
+   * reads as a groove rather than a fast-forward.
+   */
+  danceTimeScale: 0.72,
+  /** Crossfade between clips, in seconds. */
+  fadeSeconds: 0.35,
 
   /**
    * Model is auto-normalised to this height in world units, feet on y=0,
@@ -29,11 +53,12 @@ export const CHARACTER = {
   /** Extra multiplier on top of the auto-fit, for taste. */
   scale: 1.0,
   /**
-   * Poses sampled across the clip when fitting. The union of their bounding
-   * boxes is the extent the character ever reaches, so it is never cropped
-   * mid-move. 24 is plenty for a dance loop and costs one frame, once.
+   * Poses sampled per clip when fitting. Every clip is sampled and the
+   * union taken, so switching dances can never crop the figure - a big
+   * dance reaches further than an idle, and the camera has to allow for the
+   * largest of them.
    */
-  fitSamples: 24,
+  fitSamples: 12,
 
   /**
    * Fraction of the visible height the figure occupies.
@@ -71,12 +96,19 @@ export const COLLAGE = {
    * Cursor parallax, peak px offset at the viewport edge, scaled per card by
    * depth.
    *
-   * Measured on mimosaagency.com: a full-viewport cursor traverse
-   * (~1224 x 720 px) moved cards an average of just (6.4, 5.1) px, with a
-   * 0-14px spread between them. It is far subtler than it looks.
+   * Measured on mimosaagency.com by reading the isolated parallax transform
+   * (each card has a layout transform and a separate inner wrapper that
+   * carries only the parallax). A full-viewport traverse of ~1332 x 810 px
+   * moved that wrapper by an average of (+2.88, -1.82) px - about 0.2% of
+   * cursor travel, with a 1.4-4.0px spread between cards. Reading it off
+   * getBoundingClientRect, as a first pass did, rounds the whole effect away.
    */
-  pointerAmplitudeX: 8,
-  pointerAmplitudeY: 6,
+  pointerAmplitudeX: 1.5,
+  /**
+   * Negative on purpose: the reference moves cards *against* the cursor
+   * vertically while following it horizontally.
+   */
+  pointerAmplitudeY: -1,
   /**
    * Time constant for the cursor follow, in seconds - roughly how long the
    * field takes to cover ~63% of the distance to the cursor.
@@ -86,8 +118,21 @@ export const COLLAGE = {
    */
   pointerTau: 0.42,
 
-  /** Scroll parallax, as a fraction of scroll distance (~0.05 measured). */
-  scrollFactor: 0.05,
+  /**
+   * How far the field pans per pixel scrolled.
+   *
+   * Note this is a deliberate departure from the reference: mimosa's field
+   * is pinned - a real 395px wheel scroll moved its cards 16px, and its
+   * layout transform sat frozen over six seconds. Panning on scroll is the
+   * looping behaviour that was asked for, not a copy of that site.
+   */
+  scrollFactor: 0.45,
+
+  /**
+   * Sideways drift per pixel scrolled, so the field loops left/right as
+   * well as up/down rather than only sliding vertically.
+   */
+  scrollDriftX: 0.12,
 
   /** Card opacity before the clear-zone fade is applied. */
   baseOpacity: 1,

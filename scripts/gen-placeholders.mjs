@@ -34,7 +34,15 @@ const clean = args.includes("--clean");
 
 mkdirSync(OUT, { recursive: true });
 
-const IMAGE_EXT = new Set([".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif"]);
+const IMAGE_EXT = new Set([
+  ".svg",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".avif",
+]);
 const VIDEO_EXT = new Set([".mp4", ".webm", ".mov"]);
 
 if (clean) {

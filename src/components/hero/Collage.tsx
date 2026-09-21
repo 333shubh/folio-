@@ -80,6 +80,8 @@ export default function Collage() {
 
     const cards: Card[] = [];
     const pendingPlay: HTMLVideoElement[] = [];
+    /** Repeat period of the field, set when it is built. */
+    const tileSize = { w: 1, h: 1 };
 
     const images = media.filter((m) => m.type === "image");
     const videos = media.filter((m) => m.type === "video");
@@ -102,12 +104,21 @@ export default function Collage() {
       const tileW = layout.tileW * vw;
       const tileH = layout.tileH * vh;
 
-      // Repeat just far enough to cover the viewport plus a margin.
+      /*
+       * Cover the viewport plus a full tile on every side.
+       *
+       * The pan is wrapped into [0, tile) below, so the field can shift by
+       * up to one whole tile in each axis. Without that extra ring of
+       * repeats, a pan would drag a bare edge into view.
+       */
       const M = COLLAGE.margin;
-      const colFrom = Math.floor(-M / tileW) - 1;
-      const colTo = Math.floor((vw + M) / tileW) + 1;
-      const rowFrom = Math.floor(-M / tileH) - 1;
-      const rowTo = Math.floor((vh + M) / tileH) + 1;
+      const colFrom = Math.floor((-M - tileW) / tileW);
+      const colTo = Math.floor((vw + M) / tileW);
+      const rowFrom = Math.floor((-M - tileH) / tileH);
+      const rowTo = Math.floor((vh + M) / tileH);
+
+      tileSize.w = tileW;
+      tileSize.h = tileH;
 
       let imgI = 0;
       let vidI = 0;
@@ -134,10 +145,20 @@ export default function Collage() {
              * off-screen repeats from eating the video budget and leaving
              * visible slots as stills.
              */
+            /*
+             * Cull asymmetrically.
+             *
+             * The pan is wrapped into [0, tile), so a card only ever moves
+             * in the positive direction: it is drawn somewhere in
+             * [b, b + tile). It is worth keeping only if that span can
+             * reach the viewport - which needs a full extra tile behind,
+             * but nothing extra in front. Padding both sides equally, as a
+             * first pass did, built 216 cards where ~100 are reachable.
+             */
             if (
-              bx + w / 2 < -M ||
+              bx + w / 2 + tileW < -M ||
               bx - w / 2 > vw + M ||
-              by + h / 2 < -M ||
+              by + h / 2 + tileH < -M ||
               by - h / 2 > vh + M
             ) {
               continue;
@@ -205,14 +226,27 @@ export default function Collage() {
      */
     const parallaxFactor = (c: Card) => 0.5 + (1 - c.depth) * 1.0;
 
+    /** Positive modulo - JS % keeps the sign of the dividend. */
+    const wrap = (v: number, period: number) =>
+      period > 0 ? ((v % period) + period) % period : v;
+
     const place = (c: Card) => {
       const f = parallaxFactor(c);
+
+      /*
+       * Wrap the pan into one tile.
+       *
+       * The field repeats every (tileW, tileH), so shifting it by exactly
+       * one tile lands on an identical arrangement. Wrapping the offset
+       * there means the scroll can run forever and loop seamlessly without
+       * a single extra node, and without coordinates growing unbounded.
+       */
+      const panX = wrap(scrollY * COLLAGE.scrollDriftX, tileSize.w);
+      const panY = wrap(-scrollY * COLLAGE.scrollFactor, tileSize.h);
+
       return {
-        x: c.bx + pointerX * COLLAGE.pointerAmplitudeX * f,
-        y:
-          c.by +
-          pointerY * COLLAGE.pointerAmplitudeY * f -
-          scrollY * COLLAGE.scrollFactor * f,
+        x: c.bx + panX + pointerX * COLLAGE.pointerAmplitudeX * f,
+        y: c.by + panY + pointerY * COLLAGE.pointerAmplitudeY * f,
       };
     };
 
@@ -271,6 +305,10 @@ export default function Collage() {
 
     const onScroll = () => {
       scrollY = window.scrollY;
+      // Paint straight away rather than waiting for the next frame: rAF is
+      // throttled in a background or hidden tab, and the field would
+      // otherwise lag the scroll position badly on the way back.
+      for (const c of cards) paint(c);
     };
     window.addEventListener("scroll", onScroll, { passive: true });
 

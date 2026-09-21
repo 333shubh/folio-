@@ -15,7 +15,14 @@ body {
   padding: 0;
   background: var(--stage);
   color: var(--ink);
-  overflow-x: hidden;
+  /*
+   * No overflow rule here on purpose.
+   *
+   * The root element's overflow propagates to the viewport: `hidden` makes
+   * body the scrolling element (window.scrollY then sits at 0 forever) and
+   * `clip` stops the page scrolling altogether. Both broke the scroll
+   * listener. The collage is what overflows, so it does its own clipping.
+   */
 }
 
 /* ---------------------------------------------------------------------
@@ -34,9 +41,20 @@ body {
 /* ---- Layer 1: drifting collage ------------------------------------- */
 
 .collage-root {
-  position: absolute;
+  /*
+   * Fixed, not absolute.
+   *
+   * Measured on the reference: scrolling 600px moved a card 0px on screen -
+   * its field lives in a position:fixed container and never scrolls. The
+   * sections below scroll over it on their own background. Scrolling the
+   * field away with the hero was the single biggest difference from the
+   * reference, far more than any parallax tuning.
+   */
+  position: fixed;
   inset: 0;
   z-index: 0;
+  /* Clips its own cards, so no overflow rule is needed on html or body. */
+  overflow: hidden;
   pointer-events: none;
   /* Held back so it reads as atmosphere rather than content. The character
      is the subject; this is texture behind it. */
@@ -46,7 +64,8 @@ body {
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 10px;
+  /* Square corners - the reference crops hard, no rounding. */
+  border-radius: 0;
   overflow: hidden;
   will-change: transform, opacity;
   /* Opacity is driven per-frame from the clear-zone fade, not from CSS. */
@@ -64,11 +83,20 @@ body {
 /* ---- Layer 2: character -------------------------------------------- */
 
 .hero-stage {
+  /*
+   * Absolute, unlike the collage.
+   *
+   * The collage is background texture and stays pinned, as the reference
+   * does. The character is hero content - pinning it too left its head
+   * hanging over the About section while that scrolled past.
+   */
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* The canvas sits on top for stacking, but must not eat scroll or clicks. */
-  pointer-events: none;
+  /* The character is clickable, so the canvas has to receive pointer
+     events. Only meshes under the cursor get them - r3f raycasts - and the
+     nav and info card sit above this layer, so nothing else is blocked. */
+  pointer-events: auto;
 }
 
 .character-canvas {
@@ -372,10 +400,18 @@ html {
 }
 
 .section {
-  max-width: 900px;
-  margin: 0 auto;
+  /* Opaque and positioned, so it scrolls over the pinned hero rather than
+     letting the collage show through the text. */
+  position: relative;
+  z-index: 2;
+  background: var(--stage);
   padding: 88px 24px;
   border-top: 1px solid #d8d8d6;
+}
+
+.section > * {
+  max-width: 900px;
+  margin-inline: auto;
 }
 
 .section__title {

@@ -69,9 +69,16 @@ if (missing.length) {
 
 for (const anim of animations) {
   if (keep.includes(anim.getName())) continue;
-  // Samplers and their accessors go too, or the data stays in the buffer.
-  for (const sampler of anim.listSamplers()) sampler.dispose();
-  for (const channel of anim.listChannels()) channel.dispose();
+  /*
+   * Dispose the animation only, never its samplers or channels by hand.
+   *
+   * Samplers routinely share their input (time) accessor with samplers in
+   * *other* clips. Disposing them directly tears those shared accessors out
+   * from under the clips being kept, and the result is a .glb the loader
+   * refuses - which shows up as an endless re-fetch loop behind a Suspense
+   * boundary rather than a clean error. prune() below drops whatever is
+   * genuinely unreferenced, with the reference counting done properly.
+   */
   anim.dispose();
 }
 
