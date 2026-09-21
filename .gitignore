@@ -39,6 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# Local-only character model - third-party asset, not redistributed.
-/public/models/nico.glb
