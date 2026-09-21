@@ -11,13 +11,13 @@ export const CHARACTER = {
    * Override locally with NEXT_PUBLIC_CHARACTER_MODEL in .env.local.
    */
   model:
-    process.env.NEXT_PUBLIC_CHARACTER_MODEL ?? "/models/RobotExpressive.glb",
+    process.env.NEXT_PUBLIC_CHARACTER_MODEL ?? "/models/nico.glb",
 
   /**
    * Clip to play. Falls back to the first clip in the file if this name is
    * not found, so an unfamiliar model still animates instead of standing still.
    */
-  clip: process.env.NEXT_PUBLIC_CHARACTER_CLIP ?? "Dance",
+  clip: process.env.NEXT_PUBLIC_CHARACTER_CLIP ?? "hiphop",
 
   /**
    * Model is auto-normalised to this height in world units, feet on y=0,
