@@ -2,11 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import mediaManifest from "@/data/collage-media.json";
+import layoutData from "@/data/mimosa-layout.json";
 import {
   getClearZone,
   zoneDistance,
   zoneFade,
-  repulsion,
   type ClearZone,
 } from "@/lib/clear-zone";
 import { COLLAGE } from "@/config/hero";
@@ -18,32 +18,32 @@ type MediaItem = {
   h: number;
 };
 
-type Card = {
-  el: HTMLDivElement;
-  /** Base position in field space, moved only by ambient drift. */
-  bx: number;
-  by: number;
-  vx: number;
-  vy: number;
+type LayoutCard = {
+  x: number;
+  y: number;
   w: number;
   h: number;
-  rot: number;
-  /** Parallax depth 0..1 - deeper cards are smaller, fainter, and lag more. */
+  type: "image" | "video";
+};
+
+type Card = {
+  el: HTMLDivElement;
+  /** Position in field space, fixed once laid out. */
+  bx: number;
+  by: number;
+  w: number;
+  h: number;
+  /** Parallax depth 0..1, derived from the slot so it is stable. */
   depth: number;
 };
 
 const media = mediaManifest as MediaItem[];
-
-/** Deterministic PRNG so the layout is identical between server and client. */
-function mulberry32(seed: number) {
-  return () => {
-    seed |= 0;
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+const layout = layoutData as unknown as {
+  refWidth: number;
+  tileW: number;
+  tileH: number;
+  cards: LayoutCard[];
+};
 
 export default function Collage() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -56,200 +56,211 @@ export default function Collage() {
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
-    const rand = mulberry32(COLLAGE.seed);
-    const cards: Card[] = [];
-
     /**
      * Never trust these to be non-zero at mount. A hidden, collapsed or
-     * not-yet-laid-out container reports 0, which collapses the whole field
-     * to the margin and piles every card in one corner.
+     * not-yet-laid-out container reports 0, which collapses the field and
+     * piles every card in one corner.
      */
     const measure = () => ({
       w: Math.max(window.innerWidth || document.documentElement.clientWidth, 1),
-      h: Math.max(window.innerHeight || document.documentElement.clientHeight, 1),
+      h: Math.max(
+        window.innerHeight || document.documentElement.clientHeight,
+        1
+      ),
     });
 
     let { w: vw, h: vh } = measure();
     let zone: ClearZone = getClearZone(vw, vh);
 
-    // The field extends past the viewport so cards wrap off-screen unseen.
-    const M = COLLAGE.margin;
-    const fieldW = () => vw + M * 2;
-    const fieldH = () => vh + M * 2;
-
-    // Cursor parallax, normalised to -1..1 and eased toward its target.
     let pointerTX = 0;
     let pointerTY = 0;
     let pointerX = 0;
     let pointerY = 0;
     let scrollY = window.scrollY;
 
-    let videoCount = 0;
+    const cards: Card[] = [];
     const pendingPlay: HTMLVideoElement[] = [];
 
-    // Grid sized so the cells are roughly square across the whole field.
-    const cols = Math.max(2, Math.round(Math.sqrt(
-      (COLLAGE.cardCount * fieldW()) / fieldH()
-    )));
-    const rows = Math.max(2, Math.ceil(COLLAGE.cardCount / cols));
-    const cellW = fieldW() / cols;
-    const cellH = fieldH() / rows;
-
-    const cellOrder: { col: number; row: number }[] = [];
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) cellOrder.push({ col: c, row: r });
-    }
-    // Fisher-Yates on the seeded PRNG - deterministic, but uncorrelated.
-    for (let k = cellOrder.length - 1; k > 0; k--) {
-      const j = Math.floor(rand() * (k + 1));
-      [cellOrder[k], cellOrder[j]] = [cellOrder[j], cellOrder[k]];
-    }
-
-    for (let i = 0; i < COLLAGE.cardCount; i++) {
-      const item = media[i % media.length];
-      if (!item) break;
-
-      // Cap concurrently playing videos - each one is a decode pipeline, and
-      // they stack up fast next to a WebGL scene.
-      const useVideo = item.type === "video" && videoCount < COLLAGE.maxVideos;
-      if (useVideo) videoCount++;
-      if (item.type === "video" && !useVideo) continue;
-
-      const depth = rand();
-      const scale =
-        COLLAGE.minScale + (1 - depth) * (COLLAGE.maxScale - COLLAGE.minScale);
-      const w = item.w * scale;
-      const h = item.h * scale;
-
-      const el = document.createElement("div");
-      el.className = "collage-card";
-      el.style.width = `${w}px`;
-      el.style.height = `${h}px`;
-
-      if (useVideo) {
-        const v = document.createElement("video");
-        v.src = item.src;
-        v.muted = true;
-        v.loop = true;
-        v.playsInline = true;
-        v.autoplay = true;
-        v.preload = "auto";
-        // Older Safari needs the attribute, not just the property.
-        v.setAttribute("muted", "");
-        v.setAttribute("playsinline", "");
-        el.appendChild(v);
-        pendingPlay.push(v);
-      } else {
-        const img = document.createElement("img");
-        img.src = item.src;
-        img.alt = "";
-        img.decoding = "async";
-        img.loading = "lazy";
-        el.appendChild(img);
-      }
-
-      root.appendChild(el);
-
-      /**
-       * Place on a jittered grid rather than at random.
-       *
-       * Uniform random over a field this much larger than the viewport
-       * clumps badly - runs of empty screen next to piles of overlapping
-       * cards. One card per cell with jitter keeps coverage even while
-       * still looking unplanned.
-       *
-       * Cells are walked in a shuffled order so card size and depth are not
-       * correlated with screen position.
-       */
-      const cell = cellOrder[i % cellOrder.length];
-      let bx = 0;
-      let by = 0;
-      for (let attempt = 0; attempt < 12; attempt++) {
-        bx = -M + (cell.col + 0.15 + rand() * 0.7) * cellW;
-        by = -M + (cell.row + 0.15 + rand() * 0.7) * cellH;
-        if (zoneDistance(bx, by, zone) > COLLAGE.spawnClearance) break;
-      }
-
-      const angle = rand() * Math.PI * 2;
-      const speed =
-        (COLLAGE.minSpeed + rand() * (COLLAGE.maxSpeed - COLLAGE.minSpeed)) *
-        (1 - depth * 0.55);
-
-      cards.push({
-        el,
-        bx,
-        by,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        w,
-        h,
-        rot: (rand() - 0.5) * COLLAGE.maxTilt,
-        depth,
-      });
-    }
+    const images = media.filter((m) => m.type === "image");
+    const videos = media.filter((m) => m.type === "video");
 
     /**
-     * Cards nearer the front react more, which is what makes the field read
-     * as layered depth rather than one sheet sliding around. The reference
-     * shows a 22-59px spread between cards for the same cursor travel.
+     * Build the field.
+     *
+     * The reference lays out a fixed, authored set of cards and tiles that
+     * block across the plane rather than scattering at random - measured as
+     * an exact repeat every (0.9894 * vw, 1.0 * vh). Tiling is what keeps it
+     * composed instead of noisy, and it covers any viewport without needing
+     * more cards.
      */
-    const parallaxFactor = (c: Card) => 0.45 + (1 - c.depth) * 0.85;
+    const build = () => {
+      for (const c of cards) c.el.remove();
+      cards.length = 0;
+      pendingPlay.length = 0;
 
-    const place = (c: Card) => {
-      const f = parallaxFactor(c);
-      const x = c.bx + pointerX * COLLAGE.pointerAmplitudeX * f;
-      const y =
-        c.by +
-        pointerY * COLLAGE.pointerAmplitudeY * f -
-        scrollY * COLLAGE.scrollFactor * f;
-      return { x, y };
+      const scale = vw / layout.refWidth;
+      const tileW = layout.tileW * vw;
+      const tileH = layout.tileH * vh;
+
+      // Repeat just far enough to cover the viewport plus a margin.
+      const M = COLLAGE.margin;
+      const colFrom = Math.floor(-M / tileW) - 1;
+      const colTo = Math.floor((vw + M) / tileW) + 1;
+      const rowFrom = Math.floor(-M / tileH) - 1;
+      const rowTo = Math.floor((vh + M) / tileH) + 1;
+
+      let imgI = 0;
+      let vidI = 0;
+      let videoCount = 0;
+
+      for (let row = rowFrom; row <= rowTo; row++) {
+        for (let col = colFrom; col <= colTo; col++) {
+          for (let s = 0; s < layout.cards.length; s++) {
+            const slot = layout.cards[s];
+
+            const w = slot.w * scale;
+            const h = slot.h * scale;
+            const bx = slot.x * vw + col * tileW;
+            const by = slot.y * vh + row * tileH;
+
+            /**
+             * Cull anything that can never be seen, before allocating any
+             * media to it.
+             *
+             * Tiling to cover the viewport generates a whole ring of
+             * off-screen repeats - 208 cards at 1440x900 before this, most
+             * permanently outside. Each is a DOM node with a decoded image
+             * behind it, so they are not free. Culling first also stops the
+             * off-screen repeats from eating the video budget and leaving
+             * visible slots as stills.
+             */
+            if (
+              bx + w / 2 < -M ||
+              bx - w / 2 > vw + M ||
+              by + h / 2 < -M ||
+              by - h / 2 > vh + M
+            ) {
+              continue;
+            }
+
+            // Cap live video decoding; overflow slots fall back to stills.
+            const useVideo =
+              slot.type === "video" &&
+              videos.length > 0 &&
+              videoCount < COLLAGE.maxVideos;
+            const item = useVideo
+              ? videos[vidI++ % videos.length]
+              : images[imgI++ % images.length];
+            if (!item) continue;
+            if (useVideo) videoCount++;
+
+            const el = document.createElement("div");
+            el.className = "collage-card";
+            el.style.width = `${w}px`;
+            el.style.height = `${h}px`;
+
+            if (useVideo) {
+              const v = document.createElement("video");
+              v.src = item.src;
+              v.muted = true;
+              v.loop = true;
+              v.playsInline = true;
+              v.autoplay = true;
+              v.preload = "auto";
+              // Older Safari needs the attributes, not just the properties.
+              v.setAttribute("muted", "");
+              v.setAttribute("playsinline", "");
+              el.appendChild(v);
+              pendingPlay.push(v);
+            } else {
+              const img = document.createElement("img");
+              img.src = item.src;
+              img.alt = "";
+              img.decoding = "async";
+              img.loading = "lazy";
+              el.appendChild(img);
+            }
+
+            root.appendChild(el);
+
+            cards.push({
+              el,
+              bx,
+              by,
+              w,
+              h,
+              // Stable per-slot depth - no RNG, so layering is identical on
+              // every load and between server and client.
+              depth: ((s * 7) % layout.cards.length) / layout.cards.length,
+            });
+          }
+        }
+      }
     };
 
     /**
-     * Paint a card at its current parallaxed position.
+     * Cards nearer the front react slightly more, so the field reads as
+     * layered rather than one sheet sliding. The reference shows a 0-14px
+     * spread between cards for a full-viewport cursor traverse.
+     */
+    const parallaxFactor = (c: Card) => 0.5 + (1 - c.depth) * 1.0;
+
+    const place = (c: Card) => {
+      const f = parallaxFactor(c);
+      return {
+        x: c.bx + pointerX * COLLAGE.pointerAmplitudeX * f,
+        y:
+          c.by +
+          pointerY * COLLAGE.pointerAmplitudeY * f -
+          scrollY * COLLAGE.scrollFactor * f,
+      };
+    };
+
+    /**
+     * Paint a card.
      *
-     * Position and opacity are only ever written here, and this runs once up
-     * front as well as inside the frame loop - rAF does not run in a
-     * background tab, so a page loaded out of focus would otherwise keep
+     * This also runs once up front, not only inside the frame loop - rAF does
+     * not run in a background tab, so a page loaded out of focus would keep
      * every card stacked at 0,0 and invisible until first looked at.
      */
     const paint = (c: Card) => {
       const { x, y } = place(c);
       const d = zoneDistance(x, y, zone);
-      const opacity =
-        zoneFade(d) *
-        (COLLAGE.baseOpacity - c.depth * COLLAGE.depthOpacityFalloff);
+      const opacity = zoneFade(d) * COLLAGE.baseOpacity;
 
       c.el.style.transform = `translate3d(${x - c.w / 2}px, ${
         y - c.h / 2
-      }px, 0) rotate(${c.rot}deg)`;
+      }px, 0)`;
       c.el.style.opacity = opacity.toFixed(3);
     };
 
-    for (const c of cards) paint(c);
-
     /**
-     * Start the clips now that every card is attached.
+     * Start the clips.
      *
      * play() can reject transiently while the element settles, and a clip
-     * that is already buffered will never fire `canplay` again - so a single
-     * event listener is not a reliable fallback. A few spaced retries covers
-     * both cases without busy-waiting.
+     * that is already buffered never fires `canplay` again - so a single
+     * listener is not a reliable fallback. A few spaced retries covers both.
      */
     const playTimers: number[] = [];
-    for (const v of pendingPlay) {
-      let attempts = 0;
-      const tryPlay = () => {
-        if (!v.isConnected || !v.paused) return;
-        v.play().catch(() => {
-          /* autoplay blocked by policy - card stays on its first frame */
-        });
-        if (++attempts < 5) {
-          playTimers.push(window.setTimeout(tryPlay, 150 * attempts));
-        }
-      };
-      tryPlay();
-    }
+    const startClips = () => {
+      for (const v of pendingPlay) {
+        let attempts = 0;
+        const tryPlay = () => {
+          if (!v.isConnected || !v.paused) return;
+          v.play().catch(() => {
+            /* autoplay blocked by policy - card stays on its first frame */
+          });
+          if (++attempts < 5) {
+            playTimers.push(window.setTimeout(tryPlay, 150 * attempts));
+          }
+        };
+        tryPlay();
+      }
+    };
+
+    build();
+    for (const c of cards) paint(c);
+    startClips();
 
     const onPointerMove = (e: PointerEvent) => {
       pointerTX = (e.clientX / vw) * 2 - 1;
@@ -272,85 +283,51 @@ export default function Collage() {
     document.addEventListener("visibilitychange", onVisibility);
 
     /**
-     * Remap the field on resize.
+     * Rebuild on resize.
      *
-     * Card positions are laid out once against the field size at mount. Only
-     * updating vw/vh here would leave them scattered for the old viewport -
-     * clumped in a corner after a window grows, or pushed off-screen after it
-     * shrinks. Rescaling their base positions keeps the distribution intact.
+     * Slots are anchored to viewport fractions and sized against the
+     * reference width, so the field has to be laid out again rather than
+     * nudged - otherwise it stays composed for the old viewport.
      */
+    let resizeTimer = 0;
     const onResize = () => {
-      const oldW = fieldW();
-      const oldH = fieldH();
-
       const next = measure();
+      if (next.w === vw && next.h === vh) return;
       vw = next.w;
       vh = next.h;
-
-      const sx = fieldW() / oldW;
-      const sy = fieldH() / oldH;
-      for (const c of cards) {
-        c.bx = (c.bx + M) * sx - M;
-        c.by = (c.by + M) * sy - M;
-      }
-
       zone = getClearZone(vw, vh);
-      for (const c of cards) paint(c);
+
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        build();
+        for (const c of cards) paint(c);
+        startClips();
+      }, 120);
     };
     window.addEventListener("resize", onResize);
 
     // The container can be laid out after mount (hidden pane, late fonts,
-    // mobile browser chrome settling), so re-measure once the first frame
-    // has actually been through layout.
-    const ro = new ResizeObserver(() => {
-      const next = measure();
-      if (next.w !== vw || next.h !== vh) onResize();
-    });
+    // mobile browser chrome settling), so catch a size that arrives late.
+    const ro = new ResizeObserver(onResize);
     ro.observe(document.documentElement);
 
     let raf = 0;
     let last = performance.now();
 
     const frame = (now: number) => {
-      // Cap dt so a backgrounded tab does not teleport every card on return.
+      // Cap dt so a backgrounded tab does not lurch on return.
       const dt = Math.min((now - last) / 1000, 0.05);
       last = now;
 
-      // Ease toward the cursor so the field trails it with some weight.
-      // Exponential smoothing on elapsed time, so the feel is identical at
-      // 60Hz, 144Hz, or while the tab is being throttled.
-      const k = 1 - Math.exp(-dt / COLLAGE.pointerTau);
-      pointerX += (pointerTX - pointerX) * k;
-      pointerY += (pointerTY - pointerY) * k;
-
-      const fw = fieldW();
-      const fh = fieldH();
-
-      for (const c of cards) {
-        if (!reduceMotion) {
-          c.bx += c.vx * dt;
-          c.by += c.vy * dt;
-        }
-
-        // Repel against the *rendered* position, not the base one, or
-        // parallax could still carry a card across the character.
-        const { x, y } = place(c);
-        const d = zoneDistance(x, y, zone);
-        if (d < 1) {
-          const { nx, ny } = repulsion(x, y, zone);
-          const push = (1 - d) * COLLAGE.repelStrength;
-          c.bx += nx * zone.rx * push * dt;
-          c.by += ny * zone.ry * push * dt;
-        }
-
-        // Toroidal wrap keeps the field infinite without respawning nodes.
-        if (c.bx < -M - c.w) c.bx += fw + c.w;
-        else if (c.bx > fw - M) c.bx -= fw + c.w;
-        if (c.by < -M - c.h) c.by += fh + c.h;
-        else if (c.by > fh - M) c.by -= fh + c.h;
-
-        paint(c);
+      if (!reduceMotion) {
+        // Exponential smoothing on elapsed time, so the feel is identical at
+        // 60Hz, 144Hz, or while the tab is being throttled.
+        const k = 1 - Math.exp(-dt / COLLAGE.pointerTau);
+        pointerX += (pointerTX - pointerX) * k;
+        pointerY += (pointerTY - pointerY) * k;
       }
+
+      for (const c of cards) paint(c);
 
       raf = requestAnimationFrame(frame);
     };
@@ -361,8 +338,9 @@ export default function Collage() {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
-      ro.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
+      ro.disconnect();
+      window.clearTimeout(resizeTimer);
       for (const t of playTimers) clearTimeout(t);
       for (const c of cards) c.el.remove();
     };
