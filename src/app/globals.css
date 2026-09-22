@@ -245,85 +245,101 @@ body {
 }
 
 /* ---------------------------------------------------------------------
-   Hero nav
+   Nav
 
-   Same pill language as the info card: 100px radius, 12.8px / 600 weight,
-   #252525 on #dedede, pinned with the same 4px inset.
+   Measured off the reference at 1536px. Two independent fixed groups, not
+   one bar with space-between: left at left:4px, right at right:4px, both
+   top:4px, 4px between pills, z-index 9. Pills are 26px tall with 8px/12px
+   padding, a 100px radius and #f1f1f1; type is 12.8px / 600 at -0.384px
+   tracking in #252525. Hover inverts the pill to white on black.
+
+   The z-index has to clear both the sections (2) and the pinned hero (1) -
+   the nav is pinned for the whole page, not just the landing.
    --------------------------------------------------------------------- */
 
 .nav {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  right: 4px;
-  z-index: 4;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  pointer-events: none;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-.nav__left,
-.nav__right {
+.nav__group {
+  position: fixed;
+  top: 4px;
+  z-index: 9;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 4px;
 }
 
-.nav__brand {
-  padding: 7px 4px;
-  color: #111;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  text-decoration: none;
+.nav__group--left {
+  left: 4px;
 }
 
-.nav__status,
-.nav__link,
-.nav__plus {
+.nav__group--right {
+  right: 4px;
+}
+
+.nav__pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 30px;
-  padding: 0 14px;
+  height: 26px;
+  padding: 0 12px;
   border: 0;
   border-radius: 100px;
-  background: #dedede;
+  background: #f1f1f1;
   color: #252525;
   font-family: inherit;
   font-size: 12.8px;
   font-weight: 600;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.384px;
+  line-height: 1;
   text-decoration: none;
   white-space: nowrap;
-}
-
-.nav__link:hover,
-.nav__plus:hover {
-  background: #cfcfcf;
-}
-
-.nav__plus {
-  width: 30px;
-  padding: 0;
-  font-size: 16px;
-  line-height: 1;
   cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+/* The reference inverts rather than tinting - a flat black pill. */
+.nav__pill:hover,
+.nav__pill:focus-visible {
+  background: #111;
+  color: #fff;
+}
+
+.nav__pill--brand {
+  font-weight: 700;
+}
+
+/* Status is a label, not a control, so it does not take the hover. */
+.nav__pill--status {
+  cursor: default;
+}
+
+.nav__pill--status:hover {
+  background: #f1f1f1;
+  color: #252525;
+}
+
+.nav__pill--toggle {
+  width: 32px;
+  padding: 0;
+  font-size: 15px;
 }
 
 .nav__links {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* ---- inline resume reveal ---- */
+/* ---- inline resume reveal ----
+
+   The "+" grows the bar to its own left; the links after it never move,
+   which is what makes it read as the bar widening rather than as a menu
+   opening over the page. */
 
 .nav__reveal {
   display: grid;
@@ -343,21 +359,13 @@ body {
   min-width: 0;
   overflow: hidden;
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 /* Spacing lives inside the clipped area, so the closed track collapses to a
    true 0 rather than leaving a visible sliver. */
 .nav__reveal-inner > * {
-  margin-right: 6px;
-}
-
-.nav__link--accent {
-  background: #2cc5f9;
-}
-
-.nav__link--accent:hover {
-  background: #17b6ec;
+  margin-right: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -366,13 +374,13 @@ body {
   }
 }
 
-/* The info card sits under the nav strip, not at the very top. */
+/* The info card clears the nav strip rather than sitting under it. */
 .info-card {
-  top: 42px;
+  top: 38px;
 }
 
 @media (max-width: 860px) {
-  .nav__status {
+  .nav__pill--status {
     display: none;
   }
 }

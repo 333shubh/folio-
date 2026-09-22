@@ -4,16 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import { NAV } from "@/config/nav";
 
 /**
- * Hero navigation.
+ * Site navigation.
  *
- * Brand and status on the left. On the right the "+" expands the resume
- * pills *inline*, to its own left, and flips to a "-" - the same mechanic as
- * the reference, rather than a dropdown panel. The section links sit after
- * the toggle and never move.
+ * Measured off the reference at 1536px: two *independent* fixed groups, not
+ * one bar with space-between - left at `left: 4px`, right at `right: 4px`,
+ * both `top: 4px`, 4px between pills, z-index 9. Each pill is 26px tall,
+ * 8px/12px padding, a 100px radius, #f1f1f1, and 12.8px/600 type at
+ * -0.384px tracking in #252525. Hover inverts the pill to black on white.
+ *
+ * The "+" expands the extra pills *inline*, to its own left, and flips to a
+ * "−". The section links after it never move, which is the detail that
+ * makes the reveal read as the bar growing rather than as a menu opening.
  */
 export default function NavBar() {
   const [open, setOpen] = useState(false);
-  const groupRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
 
   // Escape closes it, the way a disclosure should.
@@ -31,28 +35,27 @@ export default function NavBar() {
 
   return (
     <nav className="nav" aria-label="Primary">
-      <div className="nav__left">
-        <a href="#top" className="nav__brand">
+      <div className="nav__group nav__group--left">
+        <a href="#top" className="nav__pill nav__pill--brand">
           {NAV.brand}
         </a>
-        <span className="nav__status">{NAV.status}</span>
+        <span className="nav__pill nav__pill--status">{NAV.status}</span>
       </div>
 
-      <div className="nav__right">
+      <div className="nav__group nav__group--right">
         {/*
-          Width is animated with a 0fr -> 1fr grid track rather than a fixed
+          Width animates with a 0fr -> 1fr grid track rather than a fixed
           max-width, so the reveal is exactly as wide as its contents at any
           font size or zoom level.
         */}
         <div
-          ref={groupRef}
           className={open ? "nav__reveal nav__reveal--open" : "nav__reveal"}
           id="nav-resume"
           aria-hidden={!open}
         >
           <div className="nav__reveal-inner">
             <a
-              className="nav__link nav__link--accent"
+              className="nav__pill"
               href={NAV.resume.href}
               target="_blank"
               rel="noreferrer"
@@ -66,7 +69,7 @@ export default function NavBar() {
         <button
           ref={toggleRef}
           type="button"
-          className="nav__plus"
+          className="nav__pill nav__pill--toggle"
           aria-expanded={open}
           aria-controls="nav-resume"
           aria-label={open ? "Hide resume" : "Show resume"}
@@ -78,7 +81,7 @@ export default function NavBar() {
         <ul className="nav__links">
           {NAV.links.map((link) => (
             <li key={link.href}>
-              <a className="nav__link" href={link.href}>
+              <a className="nav__pill" href={link.href}>
                 {link.label}
               </a>
             </li>
