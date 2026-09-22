@@ -29,13 +29,38 @@ body {
    Hero
    --------------------------------------------------------------------- */
 
-.hero {
-  position: relative;
-  width: 100%;
+/*
+ * The runway and the pinned hero.
+ *
+ * Measured off the reference: the hero is a `position: fixed` layer that
+ * never scrolls, and the empty 100svh block above it in the flow is the
+ * scroll that Selected Work needs to climb over it. Sections sit at z-index
+ * 2 on an opaque background, so scrolling covers a hero that has not moved
+ * rather than pushing it out of frame.
+ */
+.hero-runway {
   height: 100svh;
+}
+
+.hero {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
   overflow: hidden;
   background: var(--stage);
   isolation: isolate;
+}
+
+/*
+ * Fully covered: stop paying for it.
+ *
+ * `visibility: hidden` is doing real work here, not just hiding pixels -
+ * it stops r3f rendering the rigged character and pauses the collage's
+ * videos. Opacity would leave all of it running behind an opaque panel for
+ * the rest of the page.
+ */
+.hero--covered {
+  visibility: hidden;
 }
 
 /* ---- Layer 1: drifting collage ------------------------------------- */
