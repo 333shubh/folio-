@@ -122,6 +122,82 @@ prominent**, which pulls against the earlier "less focus on the media collage"
 note. Currently held back with `saturate(0.85)` and capped opacity. One CSS
 line either way.
 
+---
+
+## Ref 2 follow-up 2 - the nav and the landing -> section transition
+
+Driven and measured at 1536px.
+
+**Nav.** Not one bar. Two independent `position: fixed` groups, `top: 4px`,
+one at `left: 4px` and one at `right: 4px`, `gap: 4px`, `z-index: 9`.
+
+| Property | Measured |
+|---|---|
+| Pill box | 26px tall, `padding: 8px 12px`, `border-radius: 100px` |
+| Pill fill | `#f1f1f1` |
+| Type | 12.8px / 600, `letter-spacing: -0.384px`, `#252525` |
+| Hover | inverts - black fill, white text |
+| Toggle pill | 32px wide, `+` <-> `-` |
+
+The `+` expands extra pills **inline, to its own left**, and the links to its
+right never move. That is what makes it read as the bar widening rather than
+as a menu opening. Ours was already built this way; only the measurements
+changed.
+
+**The transition.** The hero never scrolls. Structure:
+
+```
+wrapper (overflow: clip)
+  div     100vh, in flow          <- the runway, empty
+  div     position: fixed, z 1    <- the whole hero
+  section position: relative, z 2 <- opaque, climbs over it
+```
+
+Scrolling moves the *next section over a hero that has not moved*. The cards
+appear to be sliced by a horizontal line because that line is the top edge of
+section 2. Scrolling the hero away instead reads completely differently -
+things leave the frame rather than being covered.
+
+Implemented, plus one thing the reference does not do: once the cover is
+complete we set `visibility: hidden` on the hero, which stops r3f rendering
+and pauses the collage videos for the rest of the page.
+
+---
+
+## Ref 3 - aikawakenichi.com
+
+**Taking:** the Selected Work showcase.
+
+**How it's built (inspected):** one `<canvas>`, three.js, lenis smooth
+scroll. All text is drawn into the canvas; the DOM copies are transparent
+(`rgba(255,255,255,0)`) and exist for measurement and a11y.
+
+**The mechanic.** Three categories (Work / Fashion / Journey) as panels on a
+cylinder, with a bottom control bar: thumbnail, current label, prev/next, and
+a MODE button. MODE switches between:
+
+- **ARC** - a closed drum, seen slightly from above so the top face shows
+- **FLAT** - the same panels unrolled into a wide row, neighbours edge-on
+
+The important observation: those are not two layouts. **They are one cylinder
+at two radii.** Stretch the radius and the front panel flattens while its
+neighbours swing out to the sides. One animated number drives the whole
+morph, and the two modes cannot drift apart.
+
+**Not taking:** the preloader, the full-page WebGL type, lenis. Our section
+lives in a page that scrolls normally.
+
+**Built as:** `src/components/work/Drum.tsx`. The bend is a vertex shader
+(`position.x` is read as arc length, so the panel keeps its width at every
+radius) rather than rebuilt geometry. Panels wrap at `count * step`, not at
+2pi - at the flat radius three panels only span ~129 degrees, so wrapping at
+pi would bunch them all on one side of the frame. Titles are DOM over the
+canvas, not baked into it.
+
+Placeholders: `node scripts/gen-work-placeholders.mjs` writes three 8:3
+panoramas to `public/work/`. Swap the files, keep the shape.
+
 ## Still to come
 
 - More reference sites (user is sharing one by one)
+- Real projects to replace Work #1-#3
