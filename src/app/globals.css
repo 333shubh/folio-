@@ -1,7 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --stage: #e6e6e6;
+  /*
+   * One page colour, everywhere.
+   *
+   * The sections used to carry three different near-whites - a grey stage
+   * behind the hero, pure white under Selected Work and a warm off-white
+   * under About - and every join between them showed as a visible band
+   * while scrolling. They are all this now, so the page reads as one
+   * surface with things happening on it rather than as stacked panels.
+   *
+   * Anything that needs to sit "on" the page earns it with a shadow or a
+   * border; nothing gets there by being a different white.
+   */
+  --page: #f4f4f2;
+  /* Kept as an alias so the hero's own rules do not all have to change. */
+  --stage: var(--page);
   --ink: #16161a;
 }
 
@@ -421,10 +435,15 @@ body {
    --------------------------------------------------------------------- */
 
 html {
-  /* Anchor links land below the nav strip rather than under it: the strip
-     is a 26px pill at a 4px inset, plus a little air. */
-  scroll-behavior: smooth;
-  scroll-padding-top: 44px;
+  /*
+   * Deliberately `auto`, not `smooth`.
+   *
+   * Lenis owns the easing now (src/components/SmoothScroll.tsx). Leaving
+   * the CSS smoothing on puts two animations on the same scroll position,
+   * which fight each other and land short. Lenis applies the anchor offset
+   * itself, so scroll-padding is not needed either.
+   */
+  scroll-behavior: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -594,73 +613,326 @@ html {
 /* ---------------------------------------------------------------------
    Selected Work
 
-   The section that climbs over the pinned hero. Opaque and at z-index 2,
-   like the other sections - white rather than --stage so the edge of the
-   climb is visible as it crosses the landing.
+   The section that climbs over the pinned hero, and the one place on the
+   page with its own design system. The tokens below are the reference's
+   own custom properties, read out of its stylesheet rather than eyeballed
+   off a screenshot - the type scale, the slide geometry and the whole
+   glass recipe for the control bar are its numbers, not approximations of
+   them.
    --------------------------------------------------------------------- */
 
 .work {
+  --w-h-margin: 60px;
+  --w-header-height: clamp(3.75rem, 10svh, 7.5rem);
+
+  /*
+   * A slide is 65svw x 26svw - both of them a fraction of viewport *width*,
+   * so a panel holds its 2.5:1 at any window shape and the layout only
+   * grows and shrinks sideways. Everything else here is positioned off
+   * these two, which is why the section survives being resized.
+   */
+  --w-slide-w: 65svw;
+  --w-slide-h: 26svw;
+
+  --w-fs-large: clamp(36px, var(--w-display-vw, 18.1184vw), 9999px);
+  --w-fs-category: clamp(36px, 7.4svw, 9999px);
+  --w-fs-s: 16px;
+  --w-fs-xs: 14px;
+  --w-fs-3xs: 11px;
+
+  /* The glass. A dark tint at low alpha over a white page is what reads as
+     the light grey in the reference - not a grey fill. */
+  --w-nav-glass: rgba(12, 12, 12, 0.75);
+  --w-nav-light: hsla(0, 0%, 100%, 0.5);
+  --w-nav-dark: rgba(0, 0, 0, 0.5);
+  --w-nav-reflex-light: 0.75;
+  --w-nav-reflex-dark: 0.75;
+  --w-nav-saturation: 180%;
+  --w-nav-height: 70px;
+  --w-nav-padding: 5px;
+  --w-nav-bottom: 30px;
+  --w-nav-radius: clamp(4px, 0.5vw, 8px);
+  --w-nav-button-w: 36px;
+  --w-nav-button-h: 24px;
+  --w-nav-main-w: 90px;
+  --w-nav-dur: 0.35s;
+  --w-nav-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  /* Written by the section: pointer in -1..1, and how far through the
+     viewport the section has travelled. Defaults matter - they are what
+     the layout uses before a pointer has ever touched it. */
+  --w-px: 0;
+  --w-py: 0;
+  --w-through: 0;
+
+  /* The chromatic ghosts under the display word. */
+  --w-chroma-c: #2ad4e6;
+  --w-chroma-m: #ff35c8;
+  --w-chroma-rest: 0.04vw;
+  --w-chroma-hover: 0.42vw;
+  --w-chroma-opacity: 0.85;
+
   position: relative;
   z-index: 2;
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #fff;
-  /* The display word is wider than the viewport on purpose; this crops it
-     rather than adding a horizontal scrollbar to the page. */
-  overflow: hidden;
-  padding: 44px 0 40px;
-}
-
-.work__intro {
-  position: relative;
-  z-index: 2;
-  margin: 0;
-  font-size: 15px;
-  letter-spacing: -0.01em;
-  color: #5a5a5a;
-}
-
-.work__intro-name {
-  color: #111;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  background: var(--page);
 }
 
 /*
- * The display word sits behind the drum and is cropped by the viewport, as
- * the reference's is. 12vw is set against the character count: a serif cap
- * averages about 0.62em of advance, so 13 characters land just past the
- * full width and the first and last letters run off the edges.
+ * Exactly one viewport, and cropped to it.
+ *
+ * `min-height` was not enough: the list below used to grow the section past
+ * a screen, which both pushed the control bar off the bottom edge and gave
+ * the climb over the hero more travel than the runway pays for. The
+ * reference pins its stage to `100svh` at both ends, and so does this.
  */
-.work__display {
-  position: absolute;
-  top: 78px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 0;
-  margin: 0;
-  font-family: var(--font-display), Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: 12vw;
-  line-height: 0.88;
-  letter-spacing: -0.045em;
-  white-space: nowrap;
-  color: var(--ink);
-  pointer-events: none;
-  user-select: none;
+.work__screen {
+  position: relative;
+  height: 100svh;
+  overflow: hidden;
+
+  /*
+   * The native cursor is hidden for the whole section.
+   *
+   * The reference does the same - `cursor: none !important` while its own
+   * pointer is up - and it is the only way the ring reads as *the* cursor
+   * rather than as a second thing trailing the real one. Restored on the
+   * controls, which want the system affordances back.
+   */
+  cursor: none;
 }
 
-.work__stage {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  flex: 1;
-  min-height: 380px;
+.work__nav,
+.work__nav * {
+  cursor: auto;
+}
+
+.work__nav-panel,
+.work__nav-large,
+.work__nav-step,
+.work__nav-link {
+  cursor: pointer;
+}
+
+/* ---- the header line ---- */
+
+.work__intro {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;
+  height: var(--w-header-height);
+  margin: 0;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: var(--w-fs-s);
+  line-height: 1;
+  color: #000;
+  pointer-events: none;
+}
+
+.work__intro-name {
+  /* The gap to the rest of the line; see the note in the component. */
+  margin-right: 0.3em;
+  color: #000;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  pointer-events: auto;
+}
+
+/* ---- the display word ---- */
+
+/*
+ * Set to the reference's own figure: 18.1184vw, uppercase, in the Didone,
+ * on one line and allowed to run off both edges.
+ *
+ * The vertical placement is its formula too - `50svh - slide/1.15` - which
+ * hangs the word off the top of the drum rather than centring it in the
+ * leftover space. Centring it instead leaves the word sitting visibly low
+ * and is the first thing that looks wrong when the drum is spinning.
+ */
+.work__display {
+  position: absolute;
+  /* The reference's own formula, floored so a short window crops the word
+     at the header instead of lifting it off the top of the screen. */
+  top: max(var(--w-header-height), calc(50svh - var(--w-slide-h) / 1.15));
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0 calc(var(--w-h-margin) / 2);
+  font-family: var(--font-display), Didot, "Bodoni MT", Georgia, serif;
+  font-weight: 400;
+  font-size: var(--w-fs-large);
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+  user-select: none;
+
+  /*
+   * Hoverable, unlike everything else at this layer.
+   *
+   * The stage sits above it, so only the parts of the word the drum is not
+   * covering answer the pointer - which is most of it, and exactly the
+   * parts worth reaching for.
+   */
+  pointer-events: auto;
+
+  /* All three layers occupy the same grid cell. */
+  display: grid;
+  justify-items: center;
+
+  /* The separation, derived once so the two ghosts cannot drift apart. */
+  --w-chroma-off: calc(
+    var(--w-chroma-rest) +
+      (var(--w-chroma-hover) - var(--w-chroma-rest)) * var(--w-chroma-amt, 0)
+  );
+
+  /* Leans with the pointer, a third as far as the drum does, so the word
+     and the drum separate slightly rather than moving as one plate. */
+  translate: calc(var(--w-px) * -8px) calc(var(--w-py) * -4px);
+  transition: translate 600ms var(--w-nav-ease);
+}
+
+/*
+ * The three layers of the word.
+ *
+ * The ghosts are absolutely positioned on top of the ink and then pulled
+ * out from under it. `multiply` rather than a plain paint: over a white
+ * page it reads as ink separating on press, where a normal blend would
+ * make cyan and magenta glow like neon and lose the printed feel entirely.
+ */
+/*
+ * The three layers of the word, stacked.
+ *
+ * All three occupy the same grid cell, so they sit exactly on top of one
+ * another however long the word is - no absolute positioning, no measuring
+ * and no chance of the ghosts drifting out of register on a resize.
+ */
+.work__display-ink,
+.work__display-ghost {
+  display: block;
+  grid-area: 1 / 1;
+}
+
+/*
+ * The separation itself.
+ *
+ * One number, `--w-chroma-amt`, written by the section from how close the
+ * pointer is to the word; everything else is derived from it so the two
+ * ghosts can never drift out of step. No transition on the offset - the
+ * amount is already a smooth function of a position that updates every
+ * frame, and easing it as well only makes it lag the cursor.
+ */
+.work__display-ghost {
+  mix-blend-mode: multiply;
+  opacity: calc(0.55 + 0.3 * var(--w-chroma-amt, 0));
+}
+
+.work__display-ghost--c {
+  color: var(--w-chroma-c);
+  translate: calc(var(--w-chroma-off) * -1) calc(var(--w-chroma-off) * -0.42);
+}
+
+.work__display-ghost--m {
+  color: var(--w-chroma-m);
+  translate: var(--w-chroma-off) calc(var(--w-chroma-off) * 0.42);
+}
+
+/* The ink thins a little, so the ghosts can be seen through it. */
+.work__display-ink {
+  opacity: calc(1 - 0.12 * var(--w-chroma-amt, 0));
+}
+
+
+
+/* ---- the stage ---- */
+
+/*
+ * The warm glow.
+ *
+ * A soft radial light behind the drum, brightest as the section crosses
+ * the middle of the viewport and gone by the time it has left - which is
+ * what `--w-through` carries. It leans with the pointer too, so the light
+ * feels like it is in the room rather than painted on.
+ *
+ * `screen` rather than a plain paint, so it lifts the page colour instead
+ * of laying a beige disc over it.
+ */
+.work__glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: 120svw;
+  height: 120svw;
+  translate: calc(-50% + var(--w-px) * 26px) calc(-50% + var(--w-py) * 18px);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 214, 158, 0.58) 0%,
+    rgba(255, 196, 150, 0.3) 28%,
+    rgba(255, 190, 170, 0.1) 48%,
+    transparent 68%
+  );
+  mix-blend-mode: screen;
+  opacity: calc(var(--w-through) * 0.9);
+  pointer-events: none;
+  will-change: translate, opacity;
+  transition: translate 700ms var(--w-nav-ease);
+}
+
+.work__stage {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  /*
+   * The native cursor is hidden over the stage.
+   *
+   * The reference does the same - `cursor: none !important` while its own
+   * pointer is up - and it is the only way the ring reads as *the* cursor
+   * rather than as a second thing trailing the real one.
+   */
+  /* Leans with the pointer, further than the word behind it. */
+  translate: calc(var(--w-px) * 14px) calc(var(--w-py) * 8px);
+  transition: translate 500ms var(--w-nav-ease);
+}
+
+/*
+ * The cursor ring.
+ *
+ * Small and quiet over the empty stage; opens out and thins when there is
+ * a panel under it, which is the same instant the View pill arrives. The
+ * two are siblings rather than nested so they can lag by different
+ * amounts - the ring is welded to the pointer, the pill drifts.
+ */
+.work__cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* Over everything in the section, including the bar. */
+  z-index: 6;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  border: 1px solid rgba(20, 20, 20, 0.45);
+  border-radius: 100px;
+  pointer-events: none;
+  will-change: transform;
+  transition: width 260ms var(--w-nav-ease), height 260ms var(--w-nav-ease),
+    border-color 260ms var(--w-nav-ease), opacity 200ms var(--w-nav-ease);
+}
+
+.work__cursor--on {
+  width: 62px;
+  height: 62px;
+  border-color: rgba(255, 255, 255, 0.72);
 }
 
 .drum {
@@ -680,197 +952,958 @@ html {
 }
 
 /*
- * The project title, centred over the drum.
+ * A project title per panel, ridden onto it by the drum's frame loop.
  *
- * It does not follow the curve: it swaps once a panel settles, which is
- * what the reference's centred serif does. `pointer-events: none` keeps the
- * drag working through it.
+ * Laid out at the origin and moved entirely by transform: the loop writes
+ * `translate3d(x, y, 0) translate(-50%, -50%) scale(s)` every frame, which
+ * lands the title's centre on the panel's centre and shrinks it with the
+ * panel as that turns away. Anything animating `left`/`top` instead would
+ * be laying out the page at the refresh rate.
  */
 .work__title {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   z-index: 2;
   margin: 0;
-  font-family: var(--font-display), Georgia, "Times New Roman", serif;
-  font-style: italic;
+  font-family: var(--font-display), Didot, "Bodoni MT", Georgia, serif;
   font-weight: 400;
-  font-size: clamp(48px, 7vw, 108px);
+  font-size: var(--w-fs-category);
   line-height: 1;
-  letter-spacing: -0.02em;
-  color: #fff;
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.22);
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: hsla(0, 0%, 100%, 0.88);
+  text-shadow: 0 2px 40px rgba(0, 0, 0, 0.18);
+  opacity: 0;
   pointer-events: none;
   user-select: none;
-  animation: work-title-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform, opacity;
 }
 
-@keyframes work-title-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
+/* ---- the View pill ---- */
+
+/*
+ * Rides the cursor, forty pixels above the hotspot so it never sits under
+ * the pointer itself. The lift is a margin rather than part of the
+ * transform so the frame loop only ever writes coordinates.
+ */
+.work__view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  margin-top: -40px;
+  padding: 9px 15px;
+  border-radius: var(--w-nav-radius);
+  background-color: color-mix(in srgb, var(--w-nav-glass) 40%, transparent);
+  backdrop-filter: blur(4px) url(#glass-distortion)
+    saturate(var(--w-nav-saturation));
+  -webkit-backdrop-filter: blur(4px) saturate(var(--w-nav-saturation));
+  box-shadow: inset 0 1px color-mix(in srgb, var(--w-nav-light) 72%, transparent),
+    inset 1px 1px color-mix(in srgb, var(--w-nav-light) 36%, transparent),
+    inset -1px -1px color-mix(in srgb, var(--w-nav-dark) 8%, transparent),
+    0 3px 10px rgba(0, 0, 0, 0.12);
+  color: #fff;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  scale: 0.8;
+  transition: opacity 220ms var(--w-nav-ease), scale 220ms var(--w-nav-ease);
+  will-change: transform, opacity;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .work__title {
-    animation: none;
-  }
+.work__view--on {
+  opacity: 1;
+  scale: 1;
 }
 
-/* ---- the control bar ---- */
+/* ---------------------------------------------------------------------
+   The control bar
 
-.work__bar {
-  position: relative;
-  z-index: 3;
+   One glass panel and one round button, both built from the reference's
+   own recipe: a dark tint at 40% over a blurred, saturated backdrop, a
+   vertical light-to-dark gradient for the tint, and a four-sided inset
+   shadow for the shine along the top and bottom edges. The long inset
+   stack on the surface is what gives the edge its thickness.
+   --------------------------------------------------------------------- */
+
+.work__nav {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: var(--w-nav-bottom);
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
+  justify-content: center;
+  column-gap: var(--w-nav-padding);
+  width: fit-content;
+  margin: 0 auto;
+  color: #fff;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-.work__now,
-.work__mode {
+.work__nav-panel,
+.work__nav-large {
+  position: relative;
+  padding: calc(var(--w-nav-padding) * 2);
+  border: 0;
+  border-radius: var(--w-nav-radius);
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--w-nav-glass) 40%, transparent);
+  /*
+   * The real thing: blur, then refraction, then saturation.
+   *
+   * `url(#glass-distortion)` is the reference's own SVG filter - a
+   * turbulence field blurred into a displacement map, with a chromatic
+   * aberration pass on top. Blur alone gives frosted glass, which is flat;
+   * this bends what is behind it and fringes the edges, which is what
+   * makes it read as an object rather than a translucent rectangle.
+   *
+   * The -webkit- line deliberately leaves the filter out. Safari does not
+   * support an SVG reference in backdrop-filter and drops the entire
+   * declaration if one is present, taking the blur with it - so it gets
+   * blur and saturation, and the panel still looks like glass.
+   */
+  backdrop-filter: blur(4px) url(#glass-distortion)
+    saturate(var(--w-nav-saturation));
+  -webkit-backdrop-filter: blur(4px) saturate(var(--w-nav-saturation));
+  box-shadow: inset 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 10%),
+        transparent
+      ),
+    inset 1.8px 3px 0 -2px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 90%),
+        transparent
+      ),
+    inset -2px -2px 0 -2px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 80%),
+        transparent
+      ),
+    inset -3px -8px 1px -6px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 60%),
+        transparent
+      ),
+    inset -0.3px -1px 4px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 12%),
+        transparent
+      ),
+    inset -1.5px 2.5px 0 -2px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 20%),
+        transparent
+      ),
+    inset 0 3px 4px -2px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 20%),
+        transparent
+      ),
+    inset 2px -6.5px 1px -4px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 10%),
+        transparent
+      ),
+    0 1px 5px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 10%),
+        transparent
+      ),
+    0 6px 16px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 8%),
+        transparent
+      ),
+    0 6px 12px rgba(0, 0, 0, 0.12);
+}
+
+.work__nav-panel {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 52px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 12px;
-  background: rgba(20, 20, 20, 0.06);
-  backdrop-filter: blur(8px);
-  color: #1b1b1b;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  height: var(--w-nav-height);
+  cursor: pointer;
+}
+
+/* The bar stops being one big Next button once its real controls are out. */
+.work__nav--open .work__nav-panel {
+  cursor: default;
+}
+
+.work__nav-tint {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--w-nav-light) 22%, transparent) 0,
+    color-mix(in srgb, var(--w-nav-light) 8%, transparent) 32%,
+    color-mix(in srgb, var(--w-nav-dark) 4%, transparent)
+  );
+}
+
+.work__nav-shine {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px color-mix(in srgb, var(--w-nav-light) 72%, transparent),
+    inset 0 -1px color-mix(in srgb, var(--w-nav-dark) 10%, transparent),
+    inset 1px 1px color-mix(in srgb, var(--w-nav-light) 36%, transparent),
+    inset -1px -1px color-mix(in srgb, var(--w-nav-dark) 8%, transparent);
+}
+
+.work__nav-body {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ---- the thumbnail ---- */
+
+.work__nav-display {
+  position: relative;
+  flex: 0 0 auto;
+  width: calc(var(--w-nav-height) - var(--w-nav-padding) * 4);
+  height: calc(var(--w-nav-height) - var(--w-nav-padding) * 4);
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: color-mix(in srgb, var(--w-nav-glass) 30%, transparent);
+  box-shadow: inset 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 10%),
+        transparent
+      ),
+    inset 2px 1px 0 -1px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 90%),
+        transparent
+      ),
+    inset -1.5px -1px 0 -1px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 80%),
+        transparent
+      ),
+    0 3px 6px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 8%),
+        transparent
+      );
+}
+
+.work__nav-thumb {
+  position: absolute;
+  inset: 0;
+  background-position: 50%;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* ---- the label stack ---- */
+
+.work__nav-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: var(--w-nav-main-w);
+  margin: 0 calc(var(--w-nav-padding) * 2);
+  text-align: center;
   text-transform: uppercase;
 }
 
-.work__thumb {
-  width: 34px;
-  height: 34px;
-  border-radius: 100px;
-  background-size: cover;
-  background-position: center;
-  flex: none;
+/*
+ * The sub-label collapses to nothing rather than fading in place, so the
+ * project name slides up to the middle of the pill as it goes. Fading it
+ * alone leaves the name sitting low with a hole above it.
+ */
+.work__nav-caption {
+  height: 1.1em;
+  margin-bottom: 0.14em;
+  color: color-mix(in srgb, #fff 62%, transparent);
+  font-size: var(--w-fs-3xs);
+  line-height: 1.15;
+  text-transform: none;
+  opacity: 1;
+  overflow: hidden;
+  transition: height var(--w-nav-dur) var(--w-nav-ease),
+    margin-bottom var(--w-nav-dur) var(--w-nav-ease),
+    opacity var(--w-nav-dur) var(--w-nav-ease);
 }
 
-.work__now-label {
-  min-width: 78px;
-  padding: 0 4px;
+.work__nav--open .work__nav-caption {
+  height: 0;
+  margin-bottom: 0;
+  opacity: 0;
 }
 
-.work__step {
-  width: 30px;
-  height: 30px;
-  display: inline-flex;
+/* Reaching for a step button brings it back, now reading "Next". */
+.work__nav--open.work__nav--peek .work__nav-caption {
+  height: 1.1em;
+  margin-bottom: 0.14em;
+  opacity: 1;
+}
+
+.work__nav-title {
+  display: block;
+  width: 100%;
+  height: 1.25em;
+  font-size: var(--w-fs-xs);
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- the step buttons ---- */
+
+/*
+ * Closed, these are zero wide and the pill has no gap where they will be.
+ * Animating `max-width` keeps the pill's own width animating with them, so
+ * the bar grows sideways from its centre as they arrive.
+ */
+.work__nav-actions {
+  display: flex;
+  align-items: center;
+  column-gap: var(--w-nav-padding);
+  flex: 0 0 auto;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width var(--w-nav-dur) var(--w-nav-ease),
+    opacity var(--w-nav-dur) var(--w-nav-ease);
+}
+
+.work__nav--open .work__nav-actions {
+  max-width: 120px;
+  opacity: 1;
+}
+
+.work__nav-step {
+  display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
+  width: var(--w-nav-button-w);
+  height: var(--w-nav-button-h);
+  padding: 0;
   border: 0;
-  border-radius: 100px;
-  background: rgba(20, 20, 20, 0.08);
-  color: #1b1b1b;
-  font: inherit;
-  font-size: 14px;
+  border-radius: 9999px;
+  background-color: color-mix(in srgb, var(--w-nav-glass) 22%, transparent);
+  box-shadow: inset 0 0 0 1px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 10%),
+        transparent
+      ),
+    inset 2px 1px 0 -1px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 90%),
+        transparent
+      ),
+    inset -1.5px -1px 0 -1px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 80%),
+        transparent
+      ),
+    inset -2px -6px 1px -5px
+      color-mix(
+        in srgb,
+        var(--w-nav-light) calc(var(--w-nav-reflex-light) * 60%),
+        transparent
+      ),
+    0 3px 6px
+      color-mix(
+        in srgb,
+        var(--w-nav-dark) calc(var(--w-nav-reflex-dark) * 8%),
+        transparent
+      );
+  color: #fff;
   cursor: pointer;
-  transition: background 160ms ease, color 160ms ease;
+  transition: background-color 200ms var(--w-nav-ease);
 }
 
-.work__step:hover,
-.work__step:focus-visible {
-  background: #111;
+.work__nav-step:hover,
+.work__nav-step:focus-visible {
+  background-color: color-mix(in srgb, var(--w-nav-glass) 46%, transparent);
+}
+
+.work__nav-arrow {
+  width: 1em;
+  height: 1em;
+  font-size: var(--w-fs-xs);
+}
+
+.work__nav-arrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  stroke-linejoin: bevel;
+}
+
+/* ---- the round mode button ---- */
+
+/*
+ * A circle that squares off and grows a label when you reach for it. Both
+ * the radius and the width animate, which is the whole gesture: the button
+ * stops being a dot and becomes a named control.
+ */
+.work__nav-large {
+  display: block;
+  flex: 0 0 auto;
+  width: var(--w-nav-height);
+  height: var(--w-nav-height);
+  border-radius: calc(var(--w-nav-height) / 2);
+  color: inherit;
+  cursor: pointer;
+  transition: border-radius var(--w-nav-dur) cubic-bezier(0.104, 0.204, 0.492, 1),
+    width var(--w-nav-dur) cubic-bezier(0.104, 0.204, 0.492, 1);
+}
+
+.work__nav--open .work__nav-large,
+.work__nav-large:hover,
+.work__nav-large:focus-visible {
+  border-radius: var(--w-nav-radius);
+}
+
+.work__nav-large:hover,
+.work__nav-large:focus-visible {
+  width: calc(var(--w-nav-height) + 62px);
+}
+
+.work__nav-large-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
   color: #fff;
 }
 
-.work__mode {
-  padding: 0 18px 0 14px;
-  cursor: pointer;
-  transition: background 160ms ease, color 160ms ease;
+.work__nav-large-label {
+  display: block;
+  max-width: 0;
+  margin-left: 0;
+  font-size: var(--w-fs-xs);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: max-width var(--w-nav-dur) var(--w-nav-ease),
+    margin-left var(--w-nav-dur) var(--w-nav-ease);
 }
 
-.work__mode:hover,
-.work__mode:focus-visible {
-  background: #111;
-  color: #fff;
+.work__nav-large:hover .work__nav-large-label,
+.work__nav-large:focus-visible .work__nav-large-label {
+  max-width: 70px;
+  margin-left: 10px;
 }
 
-/* A ring that squashes to a bar - the two states the button switches. */
-.work__mode-icon {
-  width: 18px;
-  height: 18px;
-  border: 2px solid currentColor;
-  border-radius: 100px;
-  transition: border-radius 260ms ease, height 260ms ease;
+/* ---- the glyph on it ---- */
+
+.work__nav-glyph {
+  display: inline-flex;
+  flex: 0 0 auto;
 }
 
-.work__mode[aria-pressed="true"] .work__mode-icon {
-  height: 8px;
-  border-radius: 3px;
+.work__nav-mode {
+  width: 1.25em;
+  height: 1.25em;
+  font-size: var(--w-fs-xs);
 }
 
-/* ---- the list under the canvas ---- */
+.work__nav-mode path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: bevel;
+}
+
+.work__nav-mode-next path {
+  stroke-linecap: square;
+}
+
+/*
+ * Three glyphs in one box, cross-faded.
+ *
+ * The reference tweens the arcs into the bars as actual path data. At
+ * 17px, a cross-fade with a quarter turn on the way through is not
+ * distinguishable from it, and does not need a path-morphing library on
+ * the page to do it.
+ */
+.work__nav-mode > g {
+  opacity: 0;
+  transform-origin: 50% 50%;
+  rotate: -45deg;
+  transition: opacity 260ms var(--w-nav-ease), rotate 340ms var(--w-nav-ease);
+}
+
+.work__nav-glyph[data-state="arc"] .work__nav-mode-arc,
+.work__nav-glyph[data-state="flat"] .work__nav-mode-flat,
+.work__nav-glyph[data-state="next"] .work__nav-mode-next {
+  opacity: 1;
+  rotate: 0deg;
+}
+
+/* ---------------------------------------------------------------------
+   The list under the stage
+
+   Not decoration and not a fallback: it is the section's actual content,
+   and it is what a crawler, a reader mode or a browser without WebGL is
+   given. The reference has no equivalent and the stage has to be exactly
+   one viewport, so it is taken out of the flow rather than dropped - the
+   links stay in the accessibility tree and in the document.
+   --------------------------------------------------------------------- */
 
 .work__list {
-  position: relative;
-  z-index: 2;
-  width: min(940px, 92vw);
-  margin: 36px 0 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
   padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
   list-style: none;
-  border-top: 1px solid #e4e4e2;
 }
 
-.work__list-link {
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * Everything that leans, glows or separates goes still.
+   *
+   * The chromatic split is left at its resting offset rather than removed
+   * - at half a pixel it is a printing artefact, not motion, and it is
+   * what gives the heading its texture when nothing is moving.
+   */
+  .work__display,
+  .work__stage,
+  .work__glow {
+    translate: none !important;
+    transition: none !important;
+  }
+
+  .work__display {
+    --w-chroma-amt: 0 !important;
+  }
+
+  .work__view,
+  .work__nav-caption,
+  .work__nav-actions,
+  .work__nav-large,
+  .work__nav-large-label,
+  .work__nav-mode > g {
+    transition-duration: 1ms;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   About
+
+   One viewport of near-blank field, and the section Selected Work opens
+   out into. There is no photograph: the colour lives in the canvas and
+   only appears where the cursor has been.
+   --------------------------------------------------------------------- */
+
+.about {
+  position: relative;
+  z-index: 3;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  /*
+   * The resting colour, and the canvas's own base.
+   *
+   * These two have to agree. The canvas is the backdrop rather than a
+   * layer over one, so this is what shows before WebGL is up and behind it
+   * if it never is - and it is also the white Selected Work ends on, which
+   * is what lets the veil hide the join between the two sections.
+   */
+  background: var(--page);
+  isolation: isolate;
+}
+
+/*
+ * Two scene layers, one on each side of the content.
+ *
+ * The backdrop is opaque and is the section's own background, so it has to
+ * be behind the text. The bee is in the room and has to be in front of it.
+ * The front layer takes no pointer events at all, so the frames and the
+ * link underneath stay reachable straight through it.
+ */
+.about-scene {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.about-scene--back {
+  z-index: 0;
+}
+
+.about-scene--front {
+  z-index: 4;
+}
+
+.about-scene__canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/*
+ * The veil.
+ *
+ * Opaque page white over the whole scene, thinning to nothing as the
+ * section climbs into place. `--about-reveal` is written by the section in
+ * the same frame that gates the bee, so the white burning off and the
+ * scene coming to life are one movement rather than two that overlap.
+ */
+.about__veil {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: var(--page);
+  opacity: calc(1 - var(--about-reveal, 1));
+  pointer-events: none;
+}
+
+.about__inner {
+  position: relative;
+  z-index: 3;
   display: grid;
-  grid-template-columns: 44px minmax(0, 200px) 1fr;
-  align-items: baseline;
-  gap: 12px;
-  padding: 14px 4px;
-  border-bottom: 1px solid #e4e4e2;
-  color: #1b1b1b;
-  text-decoration: none;
+  grid-template-columns: minmax(0, 0.84fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 40px;
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 96px 60px 76px;
+  color: #16161a;
+  /*
+   * Arrives with the scene, and has to.
+   *
+   * The veil is page white and so is most of the resting field, so text at
+   * full opacity would spend the whole climb sitting on a blank screen
+   * before anything else had arrived. It comes up on the same number the
+   * veil goes down on.
+   */
+  opacity: var(--about-reveal, 1);
+  translate: 0 calc((1 - var(--about-reveal, 1)) * 24px);
+  /* Nothing is clickable in here, and the wipe follows the cursor across
+     the whole section - including over the text. */
+  pointer-events: none;
+}
+
+.about__inner a {
+  pointer-events: auto;
+}
+
+.about__eyebrow {
+  margin: 0 0 14px;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b6b66;
+}
+
+.about__title {
+  margin: 0 0 22px;
+  max-width: 16ch;
+  font-family: var(--font-display), Didot, "Bodoni MT", Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(34px, 3.9vw, 62px);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  /* The title is authored with a line break in it, and means it. */
+  white-space: pre-line;
+}
+
+.about__body {
+  max-width: 46ch;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: clamp(15px, 1.15vw, 18px);
+  line-height: 1.55;
+  color: #34342f;
+}
+
+.about__body p {
+  margin: 0 0 12px;
+}
+
+.about__body p:last-child {
+  margin-bottom: 0;
+}
+
+/* The section is blank until someone moves the cursor, so it has to say so. */
+.about__hint {
+  margin: 20px 0 0;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a8a83;
+}
+
+/* ---- the board ----
+
+   Frames on a canvas, as Figma draws them: a name badge above the object,
+   a one-pixel selection outline and four corner handles. The chrome only
+   appears under the pointer, so the section reads as a set of cards until
+   somebody reaches for one and it turns into a thing that can be moved.
+   --------------------------------------------------------------------- */
+
+.board {
+  position: relative;
+  /* Tall enough for the frames to be laid out in percentages against it,
+     and short enough that the section still fits one screen. */
+  min-height: 432px;
+  height: 100%;
+  pointer-events: none;
+}
+
+.frame {
+  position: absolute;
+  /* Authored tilt first, then whatever the reader dragged. Keeping them in
+     separate custom properties means a drag never has to know the tilt. */
+  transform: translate3d(var(--dx, 0px), var(--dy, 0px), 0) rotate(var(--tilt, 0deg));
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: filter 180ms ease;
+}
+
+.frame:active {
+  cursor: grabbing;
+}
+
+.frame--on {
+  filter: drop-shadow(0 12px 28px rgba(20, 20, 30, 0.16));
+}
+
+/* The selection outline, drawn outside the card so it never eats a pixel
+   of the content the way a border would. */
+.frame--on .frame__card,
+.frame--on .frame__image {
+  box-shadow: 0 0 0 1px #4c6fff, 0 1px 2px rgba(20, 20, 30, 0.06);
+}
+
+.frame__badge {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 0;
+  padding: 2px 6px;
+  border-radius: 0;
+  background: #4c6fff;
+  color: #fff;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+
+.frame--on .frame__badge {
+  opacity: 1;
+}
+
+/* Four corner handles, placed by nth-child rather than by four classes. */
+.frame__handles i {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #4c6fff;
+  border-radius: 0;
+  background: #fff;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+
+.frame--on .frame__handles i {
+  opacity: 1;
+}
+
+.frame__handles i:nth-child(1) {
+  top: -4px;
+  left: -4px;
+}
+.frame__handles i:nth-child(2) {
+  top: -4px;
+  right: -4px;
+}
+.frame__handles i:nth-child(3) {
+  bottom: -4px;
+  left: -4px;
+}
+.frame__handles i:nth-child(4) {
+  bottom: -4px;
+  right: -4px;
+}
+
+.frame__card {
+  padding: 16px 16px 18px;
+  /* Square. Figma frames are rectangles and rounding them was the single
+     thing that made the board read as UI cards rather than as objects on
+     a canvas. */
+  border-radius: 0;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(20, 20, 30, 0.08),
+    0 1px 2px rgba(20, 20, 30, 0.06);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-.work__list-index {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: #9a9a9a;
-}
-
-.work__list-name {
-  font-size: 15px;
+.frame__title {
+  margin: 0 0 7px;
+  font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: #16161a;
 }
 
-.work__list-note {
+.frame__note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #5d5d63;
+}
+
+.frame__card--link {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.frame__link {
   font-size: 14px;
-  color: #6b6b6b;
+  font-weight: 600;
+  color: #4c6fff;
+  text-decoration: none;
+  /* The one thing in a frame that is a target rather than a handle. */
+  cursor: pointer;
 }
 
-.work__list-link:hover .work__list-name,
-.work__list-link.is-current .work__list-name {
+.frame__link:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.work__list-link.is-current .work__list-index {
-  color: #1b1b1b;
+.frame__image {
+  border-radius: 0;
+  overflow: hidden;
+  background: var(--page);
+  box-shadow: 0 0 0 1px rgba(20, 20, 30, 0.08),
+    0 1px 2px rgba(20, 20, 30, 0.06);
+  line-height: 0;
+}
+
+.frame__image img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+@media (max-width: 980px) {
+  /*
+   * Below this the two columns stop being two columns, and the board stops
+   * being a board: there is no room to drag anything without pushing it
+   * off the screen, so the frames become a plain stack.
+   */
+  .about__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    min-height: 0;
+  }
+
+  .frame {
+    position: static;
+    width: auto !important;
+    transform: none;
+    cursor: default;
+  }
+
+  .frame__badge {
+    display: none;
+  }
 }
 
 @media (max-width: 720px) {
-  .work__display {
-    font-size: 18vw;
+  .about__inner {
+    padding: 88px 24px 56px;
+  }
+}
+
+/*
+ * Reduced motion.
+ *
+ * The section keeps its colour but stops answering the cursor - the canvas
+ * is simply never given a pointer to follow, because the section stops
+ * sending one.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .about__veil {
+    opacity: 0;
   }
 
-  .work__list-link {
-    grid-template-columns: 32px 1fr;
-  }
-
-  .work__list-note {
-    grid-column: 2;
+  .about__inner {
+    opacity: 1;
+    translate: none;
   }
 }
 
