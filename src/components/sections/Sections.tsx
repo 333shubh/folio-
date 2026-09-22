@@ -1,25 +1,17 @@
 import { SECTIONS } from "@/config/sections";
 
 /**
- * The text sections after Selected Work: About, then Contact.
+ * The text sections after Selected Work and About: Contact.
  *
- * Server components - they are static text, so there is no reason to ship
- * them to the client.
+ * A server component - it is static text, so there is no reason to ship it
+ * to the client. About used to be here too; it has its own screen and its
+ * own canvas now, and lives in `components/about`.
  */
 export default function Sections() {
-  const { about, contact } = SECTIONS;
+  const { contact } = SECTIONS;
 
   return (
     <>
-      <section id={about.id} className="section">
-        <h2 className="section__title">{about.title}</h2>
-        <div className="section__body">
-          {about.body.map((p) => (
-            <p key={p}>{p}</p>
-          ))}
-        </div>
-      </section>
-
       <section id={contact.id} className="section">
         <h2 className="section__title">{contact.title}</h2>
         <div className="section__body">
