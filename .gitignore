@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Reference captures dropped in the project root while building a section.
+# They are working material - screen recordings of a site being matched, a
+# downloaded comp - and none of it belongs in the history.
+/*.mp4
+/*.jpg
