@@ -1,0 +1,139 @@
+{
+  "note": "Card layout measured from mimosaagency.com at 1440x900. Positions are fractions of the viewport; sizes are px at refWidth and scale proportionally. The field tiles by (tileW * vw, tileH * vh), so panning it by exactly one tile is identity - that is what makes the scroll loop seamless. Slots marked overlap:true were added to stack cards on each other, as the reference does.",
+  "refWidth": 1440,
+  "tileW": 0.9894,
+  "tileH": 1.0,
+  "cards": [
+    {
+      "x": 0.6014,
+      "y": 0.0822,
+      "w": 94,
+      "h": 94,
+      "type": "image"
+    },
+    {
+      "x": 0.3944,
+      "y": 0.192,
+      "w": 272,
+      "h": 153,
+      "type": "image"
+    },
+    {
+      "x": 0.1393,
+      "y": 0.201,
+      "w": 148,
+      "h": 96,
+      "type": "image"
+    },
+    {
+      "x": 0.8905,
+      "y": 0.2022,
+      "w": 184,
+      "h": 184,
+      "type": "image"
+    },
+    {
+      "x": 0.3625,
+      "y": 0.2697,
+      "w": 184,
+      "h": 104,
+      "type": "video"
+    },
+    {
+      "x": 0.7311,
+      "y": 0.451,
+      "w": 184,
+      "h": 104,
+      "type": "video"
+    },
+    {
+      "x": 0.2953,
+      "y": 0.4922,
+      "w": 113,
+      "h": 141,
+      "type": "image"
+    },
+    {
+      "x": 0.0951,
+      "y": 0.4922,
+      "w": 113,
+      "h": 170,
+      "type": "image"
+    },
+    {
+      "x": 0.0989,
+      "y": 0.6667,
+      "w": 187,
+      "h": 107,
+      "type": "image"
+    },
+    {
+      "x": 0.7956,
+      "y": 0.681,
+      "w": 261,
+      "h": 147,
+      "type": "video"
+    },
+    {
+      "x": 0.252,
+      "y": 0.741,
+      "w": 179,
+      "h": 99,
+      "type": "image"
+    },
+    {
+      "x": 0.6634,
+      "y": 0.7647,
+      "w": 130,
+      "h": 175,
+      "type": "image"
+    },
+    {
+      "x": 0.1152,
+      "y": 0.8085,
+      "w": 135,
+      "h": 135,
+      "type": "video"
+    },
+    {
+      "x": 0.432,
+      "y": 0.218,
+      "w": 150,
+      "h": 190,
+      "type": "image",
+      "overlap": true
+    },
+    {
+      "x": 0.762,
+      "y": 0.49,
+      "w": 132,
+      "h": 132,
+      "type": "image",
+      "overlap": true
+    },
+    {
+      "x": 0.132,
+      "y": 0.698,
+      "w": 140,
+      "h": 96,
+      "type": "image",
+      "overlap": true
+    },
+    {
+      "x": 0.698,
+      "y": 0.732,
+      "w": 168,
+      "h": 112,
+      "type": "image",
+      "overlap": true
+    },
+    {
+      "x": 0.328,
+      "y": 0.518,
+      "w": 120,
+      "h": 160,
+      "type": "image",
+      "overlap": true
+    }
+  ]
+}

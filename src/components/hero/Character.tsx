@@ -1,7 +1,18 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+/**
+ * The react-hooks immutability rule is disabled for this file.
+ *
+ * Driving an AnimationMixer *is* mutation: an AnimationAction is configured
+ * by assigning timeScale, weight and loop mode on the object itself, and the
+ * mixer keeps per-action state between frames. There is no immutable form of
+ * that API. The rule models React state, so it reads every action setup as a
+ * violation - all of it already lives inside effects, not render.
+ */
+/* eslint-disable react-hooks/immutability */
+
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF, useAnimations, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
 import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -11,6 +22,7 @@ function Dancer() {
   const root = useRef<THREE.Group>(null);
   const inner = useRef<THREE.Group>(null);
   const { scene, animations } = useGLTF(CHARACTER.model);
+  const [hovered, setHovered] = useState(false);
 
   /**
    * Clone so the cached GLTF is never mutated.
@@ -24,77 +36,179 @@ function Dancer() {
     const c = cloneSkeleton(scene) as THREE.Group;
     c.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) {
-        o.castShadow = true;
-        o.receiveShadow = true;
+        // Nothing casts a shadow in this scene; skipping the shadow pass
+        // keeps the draw cheap.
+        o.castShadow = false;
+        o.receiveShadow = false;
       }
     });
     return c;
   }, [scene]);
 
-  const { actions, names } = useAnimations(animations, root);
-
-  useEffect(() => {
-    if (!names.length) return;
-    // Fall back to the first clip so an unfamiliar model still dances.
-    const name = names.includes(CHARACTER.clip) ? CHARACTER.clip : names[0];
-    const action = actions[name];
-    if (!action) return;
-
-    action.reset().setLoop(THREE.LoopRepeat, Infinity).fadeIn(0.4).play();
-    return () => {
-      action.fadeOut(0.3);
-    };
-  }, [actions, names]);
+  const { actions, names, mixer } = useAnimations(animations, root);
 
   /**
-   * Fit the model to a known height with its feet on y=0.
+   * Advances to the next dance. Assigned inside the effect below.
    *
-   * Measured from the *animated* pose, not the bind pose. A rest pose tells
-   * you very little: rigs exported from different tools sit in T-pose, A-pose
-   * or flat on their back along Z, so a bind-pose height can be off by an
-   * order of magnitude. Sampling a few frames in means the character is
-   * standing the way it will actually be seen.
-   *
-   * Hidden until fitted, otherwise the first frames flash at the wrong scale.
+   * All of the mixer work lives in effects rather than callbacks: actions
+   * are imperative three.js objects, and configuring one (timeScale, loop
+   * mode, weight) during render is exactly what the compiler's immutability
+   * rule is there to catch.
    */
-  const fitted = useRef(false);
-  const frames = useRef(0);
+  const nextDanceRef = useRef<(() => void) | null>(null);
 
-  useFrame((_, delta) => {
+  useEffect(() => {
     const g = inner.current;
+    if (!g || !mixer || !names.length) return;
 
-    if (g && !fitted.current) {
-      frames.current += 1;
-      // Give the mixer a few frames to drive the skeleton into a real pose.
-      if (frames.current >= CHARACTER.fitAfterFrames) {
-        g.scale.setScalar(1);
-        g.position.set(0, 0, 0);
-        g.updateWorldMatrix(true, true);
+    const pick = (wanted: string) =>
+      names.includes(wanted) ? wanted : names[0];
 
-        const box = new THREE.Box3().setFromObject(g);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const height = size.y || 1;
-        const scale = (CHARACTER.targetHeight / height) * CHARACTER.scale;
+    const dances = CHARACTER.danceClips.filter((c) => names.includes(c));
 
-        g.scale.setScalar(scale);
-        g.position.set(
-          -center.x * scale,
-          -box.min.y * scale,
-          -center.z * scale
-        );
-        g.visible = true;
-        fitted.current = true;
+    let current: string | null = null;
+    let danceIndex = -1;
+
+    /** Crossfade to a clip, leaving the previous one to fade out. */
+    const crossfadeTo = (
+      name: string,
+      opts: { loop: boolean; timeScale?: number }
+    ) => {
+      const next = actions[name];
+      if (!next) return;
+
+      const prev = current ? actions[current] : null;
+
+      next.reset();
+      next.setEffectiveWeight(1);
+      next.timeScale = opts.timeScale ?? 1;
+      next.clampWhenFinished = !opts.loop;
+      next.setLoop(
+        opts.loop ? THREE.LoopRepeat : THREE.LoopOnce,
+        opts.loop ? Infinity : 1
+      );
+      next.play();
+
+      if (prev && prev !== next) {
+        prev.crossFadeTo(next, CHARACTER.fadeSeconds, false);
+      } else {
+        next.fadeIn(CHARACTER.fadeSeconds);
       }
+
+      current = name;
+    };
+
+    const goIdle = () => crossfadeTo(pick(CHARACTER.idleClip), { loop: true });
+
+    nextDanceRef.current = () => {
+      if (!dances.length) return;
+      danceIndex = (danceIndex + 1) % dances.length;
+      crossfadeTo(dances[danceIndex], {
+        loop: true,
+        timeScale: CHARACTER.danceTimeScale,
+      });
+    };
+
+    /**
+     * Fit by sampling every clip, at full weight.
+     *
+     * Four traps, all of which produced a visibly broken character here:
+     *
+     * 1. A rest pose says almost nothing. Rigs export in T-pose, A-pose, or
+     *    flat on their back along Z - this model measures 0.4 units tall at
+     *    rest versus 1.77 deep, a 6.5x scale error.
+     * 2. A single animated frame is no better. Land on a crouch and the
+     *    height comes up short, the scale overshoots, and the figure is
+     *    cropped as soon as it stands up.
+     * 3. Sampling during a fade-in blends the clip with the bind pose, so a
+     *    flat rest pose drags the measurement down and the scale explodes.
+     * 4. One clip is not enough either, now that clicking switches dances -
+     *    a big dance reaches further than an idle, so the camera has to
+     *    allow for the largest of them or a later dance clips out of frame.
+     */
+    g.scale.setScalar(1);
+    g.position.set(0, 0, 0);
+
+    const union = new THREE.Box3();
+    const box = new THREE.Box3();
+    const samples = CHARACTER.fitSamples;
+
+    for (const name of names) {
+      const action = actions[name];
+      if (!action) continue;
+
+      for (const other of names) actions[other]?.stop();
+      action.reset().play();
+      action.setEffectiveWeight(1);
+
+      const duration = action.getClip().duration;
+      if (duration <= 0) continue;
+
+      for (let i = 0; i < samples; i++) {
+        mixer.setTime((i / samples) * duration);
+        g.updateWorldMatrix(true, true);
+        box.setFromObject(g);
+        if (!box.isEmpty()) union.union(box);
+      }
+      action.stop();
     }
 
+    mixer.setTime(0);
+
+    if (!union.isEmpty()) {
+      const size = union.getSize(new THREE.Vector3());
+      const center = union.getCenter(new THREE.Vector3());
+      const height = size.y || 1;
+      const scale = (CHARACTER.targetHeight / height) * CHARACTER.scale;
+
+      g.scale.setScalar(scale);
+      g.position.set(-center.x * scale, -union.min.y * scale, -center.z * scale);
+      g.visible = true;
+    }
+
+    // Wave hello, then settle into the idle.
+    const intro = pick(CHARACTER.introClip);
+    crossfadeTo(intro, { loop: false });
+
+    const onFinished = (e: { action: THREE.AnimationAction }) => {
+      if (e.action === actions[intro]) goIdle();
+    };
+    mixer.addEventListener("finished", onFinished);
+
+    return () => {
+      mixer.removeEventListener("finished", onFinished);
+      for (const name of names) actions[name]?.stop();
+      nextDanceRef.current = null;
+    };
+  }, [actions, names, mixer]);
+
+  useFrame((_, delta) => {
     if (root.current && CHARACTER.turnSpeed) {
       root.current.rotation.y += delta * CHARACTER.turnSpeed;
     }
   });
 
+  // The cursor should say the character is clickable.
+  useEffect(() => {
+    document.body.style.cursor = hovered ? "pointer" : "";
+    return () => {
+      document.body.style.cursor = "";
+    };
+  }, [hovered]);
+
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
+    e.stopPropagation();
+    nextDanceRef.current?.();
+  };
+
   return (
-    <group ref={root}>
+    <group
+      ref={root}
+      onClick={onClick}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
+      {/* Hidden until fitted, or the first frames flash at the wrong scale. */}
       <group ref={inner} visible={false}>
         <primitive object={model} />
       </group>
@@ -127,9 +241,9 @@ function FitCamera() {
       CHARACTER.minVisibleWidth / 2 / (Math.tan(vFov / 2) * aspect);
 
     const dist = Math.max(distForHeight, distForWidth);
-    const targetY = CHARACTER.targetHeight * 0.5;
+    const targetY = CHARACTER.targetHeight * CHARACTER.lookAtFraction;
 
-    cam.position.set(0, targetY * 1.05, dist);
+    cam.position.set(0, targetY, dist);
     cam.lookAt(0, targetY, 0);
     cam.updateProjectionMatrix();
   }, [camera, size]);
@@ -141,34 +255,38 @@ export default function Character() {
   return (
     <Canvas
       className="character-canvas"
-      shadows
       dpr={[1, 2]}
       gl={{ antialias: true, alpha: true }}
       camera={{ position: [0, CHARACTER.targetHeight * 0.55, 8], fov: 32 }}
     >
       <FitCamera />
 
-      {/* Soft studio key + fill, matching the flat-lit reference look. */}
-      <ambientLight intensity={0.9} />
-      <directionalLight
-        position={[3, 6, 4]}
-        intensity={1.6}
-        castShadow
-        shadow-mapSize={[1024, 1024]}
-      />
-      <directionalLight position={[-4, 3, -3]} intensity={0.5} />
+      {/*
+        Flat, low-contrast studio light.
+
+        The reference casts no shadow on the ground and shows very little
+        falloff across the figure, so this is mostly ambient with a gentle
+        front-top key and a fill to lift the far side. A strong directional
+        here reads as a different scene entirely.
+      */}
+      <ambientLight intensity={1.5} />
+      <directionalLight position={[2, 5, 6]} intensity={0.85} />
+      <directionalLight position={[-4, 2, -3]} intensity={0.35} />
+      <hemisphereLight args={["#ffffff", "#c9c9c9", 0.6]} />
 
       <Suspense fallback={null}>
         <Dancer />
       </Suspense>
 
-      <ContactShadows
-        position={[0, 0.01, 0]}
-        opacity={0.42}
-        scale={9}
-        blur={2.6}
-        far={4}
-      />
+      {CHARACTER.contactShadowOpacity > 0 && (
+        <ContactShadows
+          position={[0, 0.01, 0]}
+          opacity={CHARACTER.contactShadowOpacity}
+          scale={9}
+          blur={2.6}
+          far={4}
+        />
+      )}
     </Canvas>
   );
 }

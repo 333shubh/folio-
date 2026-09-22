@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --stage: #e8e8e6;
+  --stage: #e6e6e6;
   --ink: #16161a;
 }
 
@@ -15,44 +15,86 @@ body {
   padding: 0;
   background: var(--stage);
   color: var(--ink);
-  overflow-x: hidden;
+  /*
+   * No overflow rule here on purpose.
+   *
+   * The root element's overflow propagates to the viewport: `hidden` makes
+   * body the scrolling element (window.scrollY then sits at 0 forever) and
+   * `clip` stops the page scrolling altogether. Both broke the scroll
+   * listener. The collage is what overflows, so it does its own clipping.
+   */
 }
 
 /* ---------------------------------------------------------------------
    Hero
    --------------------------------------------------------------------- */
 
-.hero {
-  position: relative;
-  width: 100%;
+/*
+ * The runway and the pinned hero.
+ *
+ * Measured off the reference: the hero is a `position: fixed` layer that
+ * never scrolls, and the empty 100svh block above it in the flow is the
+ * scroll that Selected Work needs to climb over it. Sections sit at z-index
+ * 2 on an opaque background, so scrolling covers a hero that has not moved
+ * rather than pushing it out of frame.
+ */
+.hero-runway {
   height: 100svh;
+}
+
+.hero {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
   overflow: hidden;
   background: var(--stage);
   isolation: isolate;
 }
 
+/*
+ * Fully covered: stop paying for it.
+ *
+ * `visibility: hidden` is doing real work here, not just hiding pixels -
+ * it stops r3f rendering the rigged character and pauses the collage's
+ * videos. Opacity would leave all of it running behind an opaque panel for
+ * the rest of the page.
+ */
+.hero--covered {
+  visibility: hidden;
+}
+
 /* ---- Layer 1: drifting collage ------------------------------------- */
 
 .collage-root {
-  position: absolute;
+  /*
+   * Fixed, not absolute.
+   *
+   * Measured on the reference: scrolling 600px moved a card 0px on screen -
+   * its field lives in a position:fixed container and never scrolls. The
+   * sections below scroll over it on their own background. Scrolling the
+   * field away with the hero was the single biggest difference from the
+   * reference, far more than any parallax tuning.
+   */
+  position: fixed;
   inset: 0;
   z-index: 0;
+  /* Clips its own cards, so no overflow rule is needed on html or body. */
+  overflow: hidden;
   pointer-events: none;
   /* Held back so it reads as atmosphere rather than content. The character
      is the subject; this is texture behind it. */
-  filter: saturate(0.85) contrast(0.98);
 }
 
 .collage-card {
   position: absolute;
   top: 0;
   left: 0;
-  border-radius: 10px;
+  /* Square corners - the reference crops hard, no rounding. */
+  border-radius: 0;
   overflow: hidden;
   will-change: transform, opacity;
   /* Opacity is driven per-frame from the clear-zone fade, not from CSS. */
   opacity: 0;
-  box-shadow: 0 6px 22px rgba(28, 28, 30, 0.07);
 }
 
 .collage-card img,
@@ -66,11 +108,20 @@ body {
 /* ---- Layer 2: character -------------------------------------------- */
 
 .hero-stage {
+  /*
+   * Absolute, unlike the collage.
+   *
+   * The collage is background texture and stays pinned, as the reference
+   * does. The character is hero content - pinning it too left its head
+   * hanging over the About section while that scrolled past.
+   */
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* The canvas sits on top for stacking, but must not eat scroll or clicks. */
-  pointer-events: none;
+  /* The character is clickable, so the canvas has to receive pointer
+     events. Only meshes under the cursor get them - r3f raycasts - and the
+     nav and info card sit above this layer, so nothing else is blocked. */
+  pointer-events: auto;
 }
 
 .character-canvas {
@@ -83,4 +134,754 @@ body {
   .collage-card {
     transition: none !important;
   }
+}
+
+/* ---------------------------------------------------------------------
+   Hero info card
+
+   Measured from the reference at 1440x900: 420x262px, 4px inset from the
+   top-left, #f1f1f1, 8px radius, no border and no shadow. Widths are in
+   vw below that so the card scales rather than crowding small screens.
+   --------------------------------------------------------------------- */
+
+.info-card {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 3;
+  width: min(420px, 29.2vw);
+  min-width: 300px;
+  background: #f1f1f1;
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.info-card__bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #6b6b6b;
+  background: #e9e9e9;
+}
+
+.info-card__meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.info-card__body {
+  padding: 14px 16px 16px;
+}
+
+.info-card__text {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #3a3a3a;
+  letter-spacing: -0.01em;
+}
+
+.info-card__word {
+  border-radius: 3px;
+  /* Colour only - animating a background box would make the reading
+     position jitter as each word paints. */
+  transition: background-color 90ms linear, color 90ms linear;
+}
+
+.info-card__word--name {
+  color: #111;
+  font-weight: 700;
+}
+
+/* The word currently being spoken. */
+.info-card__word--active {
+  background: #cfe9f5;
+  color: #10303d;
+}
+
+.info-card__word--name.info-card__word--active {
+  background: #2cc5f9;
+  color: #0b2a36;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-card__word {
+    transition: none;
+  }
+}
+
+.info-card__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.info-card__play {
+  flex: none;
+  padding: 7px 18px;
+  border: 0;
+  border-radius: 100px;
+  background: #1b1b1b;
+  color: #fff;
+  font: inherit;
+  font-size: 12.8px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  cursor: pointer;
+}
+
+.info-card__play:hover {
+  background: #000;
+}
+
+.info-card__tags {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.info-card__tag {
+  padding: 7px 14px;
+  border-radius: 100px;
+  background: #dedede;
+  color: #252525;
+  font-size: 12.8px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+/* Accent pill - rgb(44, 197, 249) on the reference. */
+.info-card__tag--accent {
+  background: #2cc5f9;
+}
+
+@media (max-width: 720px) {
+  .info-card {
+    width: calc(100vw - 16px);
+    min-width: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Nav
+
+   Measured off the reference at 1536px. Two independent fixed groups, not
+   one bar with space-between: left at left:4px, right at right:4px, both
+   top:4px, 4px between pills, z-index 9. Pills are 26px tall with 8px/12px
+   padding, a 100px radius and #f1f1f1; type is 12.8px / 600 at -0.384px
+   tracking in #252525. Hover inverts the pill to white on black.
+
+   The z-index has to clear both the sections (2) and the pinned hero (1) -
+   the nav is pinned for the whole page, not just the landing.
+   --------------------------------------------------------------------- */
+
+.nav {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.nav__group {
+  position: fixed;
+  top: 4px;
+  z-index: 9;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.nav__group--left {
+  left: 4px;
+}
+
+.nav__group--right {
+  right: 4px;
+}
+
+.nav__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 100px;
+  background: #f1f1f1;
+  color: #252525;
+  font-family: inherit;
+  font-size: 12.8px;
+  font-weight: 600;
+  letter-spacing: -0.384px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+/* The reference inverts rather than tinting - a flat black pill. */
+.nav__pill:hover,
+.nav__pill:focus-visible {
+  background: #111;
+  color: #fff;
+}
+
+.nav__pill--brand {
+  font-weight: 700;
+}
+
+/* Status is a label, not a control, so it does not take the hover. */
+.nav__pill--status {
+  cursor: default;
+}
+
+.nav__pill--status:hover {
+  background: #f1f1f1;
+  color: #252525;
+}
+
+.nav__pill--toggle {
+  width: 32px;
+  padding: 0;
+  font-size: 15px;
+}
+
+.nav__links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- inline resume reveal ----
+
+   The "+" grows the bar to its own left; the links after it never move,
+   which is what makes it read as the bar widening rather than as a menu
+   opening over the page. */
+
+.nav__reveal {
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 200ms ease;
+  opacity: 0;
+}
+
+.nav__reveal--open {
+  grid-template-columns: 1fr;
+  opacity: 1;
+}
+
+/* The min-width:0 is what lets the 0fr track actually collapse. */
+.nav__reveal-inner {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  gap: 4px;
+}
+
+/* Spacing lives inside the clipped area, so the closed track collapses to a
+   true 0 rather than leaving a visible sliver. */
+.nav__reveal-inner > * {
+  margin-right: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__reveal {
+    transition: none;
+  }
+}
+
+/* The info card clears the nav strip rather than sitting under it. */
+.info-card {
+  top: 38px;
+}
+
+@media (max-width: 860px) {
+  .nav__pill--status {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .nav__links {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Sections
+   --------------------------------------------------------------------- */
+
+html {
+  /* Anchor links land below the nav strip rather than under it: the strip
+     is a 26px pill at a 4px inset, plus a little air. */
+  scroll-behavior: smooth;
+  scroll-padding-top: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+.section {
+  /* Opaque and positioned, so it scrolls over the pinned hero rather than
+     letting the collage show through the text. */
+  position: relative;
+  z-index: 2;
+  background: var(--stage);
+  padding: 88px 24px;
+  border-top: 1px solid #d8d8d6;
+}
+
+.section > * {
+  max-width: 900px;
+  margin-inline: auto;
+}
+
+.section__title {
+  margin: 0 0 28px;
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: #111;
+}
+
+.section__body {
+  max-width: 62ch;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #3a3a3a;
+}
+
+.section__body p {
+  margin: 0 0 14px;
+}
+
+.section__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #dcdcda;
+}
+
+.section__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #dcdcda;
+}
+
+.section__item-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 20px;
+  width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.section__item-name {
+  flex: 0 0 240px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #111;
+}
+
+.section__item-note {
+  flex: 1 1 260px;
+  font-size: 15px;
+  color: #5c5c5c;
+}
+
+.section__item-link:hover .section__item-name {
+  text-decoration: underline;
+}
+
+.section__mail {
+  font-size: clamp(20px, 3.5vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #111;
+}
+
+.section__socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.section__social {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 100px;
+  background: #dedede;
+  color: #252525;
+  font-size: 12.8px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.section__social:hover {
+  background: #cfcfcf;
+}
+
+/* ---- info card: eye toggle + collapsed state ---- */
+
+.info-card__bar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-card__eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 100px;
+  background: transparent;
+  color: #6b6b6b;
+  cursor: pointer;
+}
+
+.info-card__eye:hover {
+  color: #111;
+  background: #dcdcdc;
+}
+
+.info-card__eye:focus-visible {
+  outline: 2px solid #2cc5f9;
+  outline-offset: 1px;
+}
+
+.info-card__body[hidden] {
+  display: none;
+}
+
+.info-card--collapsed {
+  width: auto;
+  min-width: 0;
+}
+
+.info-card__play:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------------
+   Selected Work
+
+   The section that climbs over the pinned hero. Opaque and at z-index 2,
+   like the other sections - white rather than --stage so the edge of the
+   climb is visible as it crosses the landing.
+   --------------------------------------------------------------------- */
+
+.work {
+  position: relative;
+  z-index: 2;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fff;
+  /* The display word is wider than the viewport on purpose; this crops it
+     rather than adding a horizontal scrollbar to the page. */
+  overflow: hidden;
+  padding: 44px 0 40px;
+}
+
+.work__intro {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  color: #5a5a5a;
+}
+
+.work__intro-name {
+  color: #111;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/*
+ * The display word sits behind the drum and is cropped by the viewport, as
+ * the reference's is. 12vw is set against the character count: a serif cap
+ * averages about 0.62em of advance, so 13 characters land just past the
+ * full width and the first and last letters run off the edges.
+ */
+.work__display {
+  position: absolute;
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
+  margin: 0;
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 12vw;
+  line-height: 0.88;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+  color: var(--ink);
+  pointer-events: none;
+  user-select: none;
+}
+
+.work__stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  flex: 1;
+  min-height: 380px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drum {
+  position: absolute;
+  inset: 0;
+  /* The whole frame is the dial, not just the panels - grabbing the empty
+     space beside the drum turns it too. The grabbing cursor is set on the
+     canvas from the drag handler, which knows when a drag is live. */
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.drum__canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/*
+ * The project title, centred over the drum.
+ *
+ * It does not follow the curve: it swaps once a panel settles, which is
+ * what the reference's centred serif does. `pointer-events: none` keeps the
+ * drag working through it.
+ */
+.work__title {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 108px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  user-select: none;
+  animation: work-title-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes work-title-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .work__title {
+    animation: none;
+  }
+}
+
+/* ---- the control bar ---- */
+
+.work__bar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.work__now,
+.work__mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(20, 20, 20, 0.06);
+  backdrop-filter: blur(8px);
+  color: #1b1b1b;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.work__thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 100px;
+  background-size: cover;
+  background-position: center;
+  flex: none;
+}
+
+.work__now-label {
+  min-width: 78px;
+  padding: 0 4px;
+}
+
+.work__step {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 100px;
+  background: rgba(20, 20, 20, 0.08);
+  color: #1b1b1b;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.work__step:hover,
+.work__step:focus-visible {
+  background: #111;
+  color: #fff;
+}
+
+.work__mode {
+  padding: 0 18px 0 14px;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.work__mode:hover,
+.work__mode:focus-visible {
+  background: #111;
+  color: #fff;
+}
+
+/* A ring that squashes to a bar - the two states the button switches. */
+.work__mode-icon {
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-radius: 100px;
+  transition: border-radius 260ms ease, height 260ms ease;
+}
+
+.work__mode[aria-pressed="true"] .work__mode-icon {
+  height: 8px;
+  border-radius: 3px;
+}
+
+/* ---- the list under the canvas ---- */
+
+.work__list {
+  position: relative;
+  z-index: 2;
+  width: min(940px, 92vw);
+  margin: 36px 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid #e4e4e2;
+}
+
+.work__list-link {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 200px) 1fr;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid #e4e4e2;
+  color: #1b1b1b;
+  text-decoration: none;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.work__list-index {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #9a9a9a;
+}
+
+.work__list-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.work__list-note {
+  font-size: 14px;
+  color: #6b6b6b;
+}
+
+.work__list-link:hover .work__list-name,
+.work__list-link.is-current .work__list-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.work__list-link.is-current .work__list-index {
+  color: #1b1b1b;
+}
+
+@media (max-width: 720px) {
+  .work__display {
+    font-size: 18vw;
+  }
+
+  .work__list-link {
+    grid-template-columns: 32px 1fr;
+  }
+
+  .work__list-note {
+    grid-column: 2;
+  }
+}
+
+/* Read by a screen reader, never shown. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

@@ -91,21 +91,44 @@ To get a character with a dance loop: [Mixamo](https://www.mixamo.com) is free
 and its animations are royalty-free, including for commercial work. Upload a
 rigged avatar (or use one of theirs), pick a dance, export as glb with skin.
 
+### Model optimisation
+
+Source models ship every clip their rig was authored with. The hero plays
+one. On `nico.glb` the unused clips were **923 KB of a 1071 KB file - 86% of
+the download** for animations that never run, and its 2048² texture cost
+~22 MB of VRAM decoded.
+
+```bash
+npm run opt:model -- public/models/in.glb public/models/out.glb --keep hiphop --tex 1024
+```
+
+`--keep` takes a comma-separated clip list, `--tex` caps texture resolution.
+This took nico.glb from **1071 KB to 218 KB**. The untouched original stays in
+git history.
+
 ### Placeholder media
 
 The collage ships with locally generated placeholders — flat SVG cards and
 short silent gradient clips — so the hero has something to show before real
 assets land. Nothing here is third-party.
 
-Regenerate or extend them:
+**To use your own assets: drop them into `public/media/` and run:**
 
 ```bash
-node scripts/gen-placeholders.mjs
+npm run gen:media
 ```
 
-It writes to `public/media/` and rewrites the manifest at
-`src/data/collage-media.json`. To use real assets, drop files into
-`public/media/` and add entries to that manifest (`src`, `type`, `w`, `h`).
+The script scans that folder, reads each file's real dimensions, and rewrites
+the manifest at `src/data/collage-media.json`. Nothing else needs editing.
+Supported: `svg png jpg jpeg webp gif` and `mp4 webm mov`.
+
+Generated placeholders are prefixed `gen-`. Delete them once you have your own
+media, or run `npm run gen:media -- --clean` to drop and rebuild them.
+`--no-generate` scans your files without adding any.
+
+Good sources that are free for commercial use:
+[Unsplash](https://unsplash.com), [Pexels](https://pexels.com),
+[Coverr](https://coverr.co) and [Mixkit](https://mixkit.co) for video.
 
 ## Assets
 

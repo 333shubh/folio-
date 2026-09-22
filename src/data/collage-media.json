@@ -1,86 +1,56 @@
 [
   {
-    "src": "/media/card-01.svg",
+    "src": "/media/cat.jpg",
     "type": "image",
-    "w": 600,
-    "h": 400
+    "w": 736,
+    "h": 552
   },
   {
-    "src": "/media/card-02.svg",
+    "src": "/media/extra.avif",
     "type": "image",
-    "w": 400,
-    "h": 520
+    "w": 1673,
+    "h": 956
   },
   {
-    "src": "/media/card-03.svg",
+    "src": "/media/eye-glitch.webp",
     "type": "image",
-    "w": 560,
-    "h": 560
+    "w": 500,
+    "h": 281
   },
   {
-    "src": "/media/card-04.svg",
+    "src": "/media/horses.jpg",
     "type": "image",
-    "w": 520,
-    "h": 340
+    "w": 736,
+    "h": 477
   },
   {
-    "src": "/media/card-05.svg",
+    "src": "/media/lizard-tcr.webp",
     "type": "image",
-    "w": 380,
-    "h": 500
+    "w": 500,
+    "h": 375
   },
   {
-    "src": "/media/card-06.svg",
+    "src": "/media/planet.webp",
     "type": "image",
-    "w": 600,
-    "h": 400
+    "w": 500,
+    "h": 387
   },
   {
-    "src": "/media/card-07.svg",
+    "src": "/media/shadows.jpg",
     "type": "image",
-    "w": 400,
-    "h": 520
+    "w": 735,
+    "h": 485
   },
   {
-    "src": "/media/card-08.svg",
+    "src": "/media/snakes.jpg",
     "type": "image",
-    "w": 560,
-    "h": 560
+    "w": 1199,
+    "h": 632
   },
   {
-    "src": "/media/card-09.svg",
+    "src": "/media/vhs-welcome.webp",
     "type": "image",
-    "w": 520,
-    "h": 340
-  },
-  {
-    "src": "/media/card-10.svg",
-    "type": "image",
-    "w": 380,
-    "h": 500
-  },
-  {
-    "src": "/media/clip-01.mp4",
-    "type": "video",
-    "w": 480,
-    "h": 270
-  },
-  {
-    "src": "/media/clip-02.mp4",
-    "type": "video",
-    "w": 360,
-    "h": 480
-  },
-  {
-    "src": "/media/clip-03.mp4",
-    "type": "video",
-    "w": 420,
-    "h": 420
-  },
-  {
-    "src": "/media/clip-04.mp4",
-    "type": "video",
-    "w": 480,
+    "w": 386,
     "h": 270
   }
 ]
