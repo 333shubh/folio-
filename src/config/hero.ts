@@ -93,22 +93,21 @@ export const COLLAGE = {
   margin: 200,
 
   /**
-   * Cursor parallax, peak px offset at the viewport edge, scaled per card by
-   * depth.
+   * Cursor parallax, peak px offset at the viewport edge, scaled per card
+   * by depth.
    *
-   * Measured on mimosaagency.com by reading the isolated parallax transform
-   * (each card has a layout transform and a separate inner wrapper that
-   * carries only the parallax). A full-viewport traverse of ~1332 x 810 px
-   * moved that wrapper by an average of (+2.88, -1.82) px - about 0.2% of
-   * cursor travel, with a 1.4-4.0px spread between cards. Reading it off
-   * getBoundingClientRect, as a first pass did, rounds the whole effect away.
+   * Re-measured, because the first pass was wrong twice over. It read an
+   * isolated inner transform and came back with ~3px of travel, and it
+   * concluded the vertical axis ran *against* the cursor. Driving the
+   * reference with real pointer events and reading getBoundingClientRect
+   * gives a cursor traverse of 1300 x 500 px moving cards by (+82, +43) to
+   * (+114, +79) - two orders of magnitude larger than the old number, and
+   * positive on both axes. The cards follow the cursor diagonally.
+   *
+   * The per-card spread is depth, not noise.
    */
-  pointerAmplitudeX: 1.5,
-  /**
-   * Negative on purpose: the reference moves cards *against* the cursor
-   * vertically while following it horizontally.
-   */
-  pointerAmplitudeY: -1,
+  pointerAmplitudeX: 40,
+  pointerAmplitudeY: 32,
   /**
    * Time constant for the cursor follow, in seconds - roughly how long the
    * field takes to cover ~63% of the distance to the cursor.
@@ -121,18 +120,24 @@ export const COLLAGE = {
   /**
    * How far the field pans per pixel scrolled.
    *
-   * Note this is a deliberate departure from the reference: mimosa's field
-   * is pinned - a real 395px wheel scroll moved its cards 16px, and its
-   * layout transform sat frozen over six seconds. Panning on scroll is the
-   * looping behaviour that was asked for, not a copy of that site.
+   * Also re-measured. An earlier note here claimed the reference's field was
+   * pinned and that panning on scroll was our own departure from it. It is
+   * not: that measurement drove the page with `scrollTo`, which the
+   * reference's smooth-scroll library does not observe, so the field sat
+   * still while the page moved underneath it. Driven with real wheel
+   * events, six ticks moved the cards 0.62-0.8x the scroll distance, and
+   * they wrap - which is exactly the looping field this already had.
    */
-  scrollFactor: 0.45,
+  scrollFactor: 0.7,
 
   /**
-   * Sideways drift per pixel scrolled, so the field loops left/right as
-   * well as up/down rather than only sliding vertically.
+   * Sideways drift per pixel scrolled.
+   *
+   * Zero, measured: card x did not change by a single pixel across 720px of
+   * wheel scrolling. The field loops vertically only; the horizontal
+   * movement in the reference comes from the cursor, not from scroll.
    */
-  scrollDriftX: 0.12,
+  scrollDriftX: 0,
 
   /** Card opacity before the clear-zone fade is applied. */
   baseOpacity: 1,
