@@ -11,7 +11,14 @@
  */
 /* eslint-disable react-hooks/immutability */
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF, useAnimations, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
@@ -182,8 +189,30 @@ function Dancer() {
     };
   }, [actions, names, mixer]);
 
+  /**
+   * Honour prefers-reduced-motion for the idle turn.
+   *
+   * The dance itself is the content and stays - the setting asks for less
+   * incidental motion, not a frozen page. The slow continuous rotation is
+   * incidental, and unending rotation is exactly the kind of thing that
+   * triggers vestibular discomfort, so that is what stops.
+   *
+   * Read through a media-query listener rather than once, so it follows the
+   * system setting being changed while the page is open.
+   */
+  const reduceMotion = useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    // Server snapshot: assume motion is fine, then correct on hydration.
+    () => false
+  );
+
   useFrame((_, delta) => {
-    if (root.current && CHARACTER.turnSpeed) {
+    if (root.current && CHARACTER.turnSpeed && !reduceMotion) {
       root.current.rotation.y += delta * CHARACTER.turnSpeed;
     }
   });
