@@ -68,10 +68,32 @@ function Dancer() {
     const g = inner.current;
     if (!g || !mixer || !names.length) return;
 
-    const pick = (wanted: string) =>
-      names.includes(wanted) ? wanted : names[0];
+    /**
+     * Resolve a clip by candidate list, case-insensitively.
+     *
+     * Rig authors name clips however they like - "waving" here, "Wave"
+     * there - so matching one exact string only works for the model it was
+     * written against. Falling back to the first clip keeps an unfamiliar
+     * model animating rather than standing frozen.
+     */
+    const byLower = new Map(names.map((n) => [n.toLowerCase(), n]));
+    const pick = (candidates: readonly string[]) => {
+      for (const c of candidates) {
+        const hit = byLower.get(c.toLowerCase());
+        if (hit) return hit;
+      }
+      return names[0];
+    };
 
-    const dances = CHARACTER.danceClips.filter((c) => names.includes(c));
+    // Deduped: two aliases for the same clip would otherwise make the click
+    // cycle land on it twice in a row.
+    const dances = [
+      ...new Set(
+        CHARACTER.danceClips
+          .map((c) => byLower.get(c.toLowerCase()))
+          .filter((c): c is string => Boolean(c))
+      ),
+    ];
 
     let current: string | null = null;
     let danceIndex = -1;
@@ -105,7 +127,7 @@ function Dancer() {
       current = name;
     };
 
-    const goIdle = () => crossfadeTo(pick(CHARACTER.idleClip), { loop: true });
+    const goIdle = () => crossfadeTo(pick(CHARACTER.idleClips), { loop: true });
 
     nextDanceRef.current = () => {
       if (!dances.length) return;
@@ -174,7 +196,8 @@ function Dancer() {
     }
 
     // Wave hello, then settle into the idle.
-    const intro = pick(CHARACTER.introClip);
+    const intro = pick(CHARACTER.introClips);
+
     crossfadeTo(intro, { loop: false });
 
     const onFinished = (e: { action: THREE.AnimationAction }) => {
