@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Bodoni_Moda } from "next/font/google";
 import "./globals.css";
 import ClickSounds from "@/components/ClickSounds";
@@ -35,9 +35,50 @@ const displaySerif = Bodoni_Moda({
   style: ["normal", "italic"],
 });
 
+const SITE_NAME = "Shubh Jadiya";
+const SITE_DESCRIPTION =
+  "Developer, designer, and curious builder exploring software, agentic AI, " +
+  "blockchain, and digital experiences.";
+
 export const metadata: Metadata = {
-  title: "folio",
-  description: "Portfolio",
+  title: {
+    default: `${SITE_NAME} — Developer & Designer`,
+    // Any future page sets only its own name and still gets the suffix.
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  authors: [{ name: SITE_NAME }],
+  creator: SITE_NAME,
+  keywords: [
+    "portfolio",
+    "developer",
+    "designer",
+    "agentic AI",
+    "blockchain",
+    "web development",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — Developer & Designer`,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Developer & Designer`,
+    description: SITE_DESCRIPTION,
+  },
+  robots: { index: true, follow: true },
+};
+
+/**
+ * Matches the stage colour, so mobile browser chrome blends into the hero
+ * instead of framing it with a white bar.
+ */
+export const viewport: Viewport = {
+  themeColor: "#e6e6e6",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
