@@ -11,7 +11,14 @@
  */
 /* eslint-disable react-hooks/immutability */
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { useGLTF, useAnimations, ContactShadows } from "@react-three/drei";
 import * as THREE from "three";
@@ -61,10 +68,32 @@ function Dancer() {
     const g = inner.current;
     if (!g || !mixer || !names.length) return;
 
-    const pick = (wanted: string) =>
-      names.includes(wanted) ? wanted : names[0];
+    /**
+     * Resolve a clip by candidate list, case-insensitively.
+     *
+     * Rig authors name clips however they like - "waving" here, "Wave"
+     * there - so matching one exact string only works for the model it was
+     * written against. Falling back to the first clip keeps an unfamiliar
+     * model animating rather than standing frozen.
+     */
+    const byLower = new Map(names.map((n) => [n.toLowerCase(), n]));
+    const pick = (candidates: readonly string[]) => {
+      for (const c of candidates) {
+        const hit = byLower.get(c.toLowerCase());
+        if (hit) return hit;
+      }
+      return names[0];
+    };
 
-    const dances = CHARACTER.danceClips.filter((c) => names.includes(c));
+    // Deduped: two aliases for the same clip would otherwise make the click
+    // cycle land on it twice in a row.
+    const dances = [
+      ...new Set(
+        CHARACTER.danceClips
+          .map((c) => byLower.get(c.toLowerCase()))
+          .filter((c): c is string => Boolean(c))
+      ),
+    ];
 
     let current: string | null = null;
     let danceIndex = -1;
@@ -98,7 +127,7 @@ function Dancer() {
       current = name;
     };
 
-    const goIdle = () => crossfadeTo(pick(CHARACTER.idleClip), { loop: true });
+    const goIdle = () => crossfadeTo(pick(CHARACTER.idleClips), { loop: true });
 
     nextDanceRef.current = () => {
       if (!dances.length) return;
@@ -167,7 +196,8 @@ function Dancer() {
     }
 
     // Wave hello, then settle into the idle.
-    const intro = pick(CHARACTER.introClip);
+    const intro = pick(CHARACTER.introClips);
+
     crossfadeTo(intro, { loop: false });
 
     const onFinished = (e: { action: THREE.AnimationAction }) => {
@@ -182,8 +212,30 @@ function Dancer() {
     };
   }, [actions, names, mixer]);
 
+  /**
+   * Honour prefers-reduced-motion for the idle turn.
+   *
+   * The dance itself is the content and stays - the setting asks for less
+   * incidental motion, not a frozen page. The slow continuous rotation is
+   * incidental, and unending rotation is exactly the kind of thing that
+   * triggers vestibular discomfort, so that is what stops.
+   *
+   * Read through a media-query listener rather than once, so it follows the
+   * system setting being changed while the page is open.
+   */
+  const reduceMotion = useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    },
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    // Server snapshot: assume motion is fine, then correct on hydration.
+    () => false
+  );
+
   useFrame((_, delta) => {
-    if (root.current && CHARACTER.turnSpeed) {
+    if (root.current && CHARACTER.turnSpeed && !reduceMotion) {
       root.current.rotation.y += delta * CHARACTER.turnSpeed;
     }
   });

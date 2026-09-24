@@ -13,16 +13,33 @@ export const CHARACTER = {
    *
    * Override locally with NEXT_PUBLIC_CHARACTER_MODEL in .env.local.
    */
-  model: process.env.NEXT_PUBLIC_CHARACTER_MODEL ?? "/models/nico.glb",
+  model:
+    process.env.NEXT_PUBLIC_CHARACTER_MODEL ?? "/models/RobotExpressive.glb",
 
   /**
    * Clip played once on load, before settling into the idle.
    * Falls back to the first clip in the file if the name is not present.
    */
-  introClip: process.env.NEXT_PUBLIC_CHARACTER_INTRO ?? "waving",
+  /**
+   * Candidates, tried in order and matched case-insensitively.
+   *
+   * Clip names are whatever the rig's author typed - "waving" in one model,
+   * "Wave" in the next - so a single exact name only ever works for the one
+   * model it was written against, which defeats the point of the model
+   * being swappable.
+   */
+  introClips: [
+    process.env.NEXT_PUBLIC_CHARACTER_INTRO,
+    "waving",
+    "wave",
+  ].filter(Boolean) as readonly string[],
 
   /** Resting loop between dances. */
-  idleClip: process.env.NEXT_PUBLIC_CHARACTER_IDLE ?? "idle",
+  idleClips: [
+    process.env.NEXT_PUBLIC_CHARACTER_IDLE,
+    "idle",
+    "standing",
+  ].filter(Boolean) as readonly string[],
 
   /**
    * Clicking the character advances through these, in order, so every dance
@@ -35,6 +52,8 @@ export const CHARACTER = {
     "slide",
     "chicken",
     "twerk",
+    // RobotExpressive, and most stock rigs, call it simply "Dance".
+    "dance",
   ] as readonly string[],
 
   /**
